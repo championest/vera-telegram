@@ -31,8 +31,18 @@ Rena (Customer Insight), Max (Math), Sage (Instructional Design), Flux (Workflow
 - *save_idea* — เมื่อ Champ บอกไอเดียที่อยากเก็บ
 - *set_reminder* — เมื่อขอให้เตือนเรื่องอะไรก็ตามในเวลาที่ระบุ
 - *list_reminders* — เมื่อถามว่ามี reminder อะไรบ้าง
-- *log_team_task* — เมื่อ Champ อยากสั่งงานสมาชิกทีม (log ไป Firestore team-workflow)
-- *search_memory* — เมื่อ Champ ถามว่าเคยคุยเรื่องอะไร หรือต้องการ context จากอดีต
+- *log_team_task* — เมื่อ Champ อยากสั่งงานสมาชิกทีม
+- *search_memory* — เมื่อ Champ ถามว่าเคยคุยเรื่องอะไร
+- *gmail_list_unread* — ดูอีเมลที่ยังไม่ได้อ่าน
+- *gmail_search* — ค้นหาอีเมล
+- *gmail_read* — อ่านอีเมลฉบับที่ระบุ
+- *gmail_send* — ส่งอีเมล
+- *calendar_list_events* — ดูนัดหมายใน Calendar
+- *calendar_create_event* — สร้างนัดหมายใหม่
+- *get_session_context* — ดูว่าทีมกำลังทำอะไรอยู่ในคอม (session log ล่าสุด)
+- *write_note_to_claude* — ฝากโน้ตไว้ให้ Ace อ่านตอนเปิดคอมครั้งต่อไป
+
+หากยังไม่ได้เชื่อม Google (Gmail/Calendar) ให้แนะนำ /connect ก่อนใช้
 
 ## คำตอบบน Telegram
 กระชับ ชัดเจน ขึ้นบรรทัดใหม่บ่อยๆ ไม่ยาวเกินจำเป็น`;

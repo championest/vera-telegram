@@ -1,7 +1,7 @@
 import { Bot, GrammyError, HttpError } from 'grammy';
 import { config } from './config.js';
 import { handleUserMessage } from './handlers/message.js';
-import { handleStart, handleReminders, handleIdeas, handleTasks, handleHelp } from './handlers/command.js';
+import { handleStart, handleReminders, handleIdeas, handleTasks, handleHelp, handleConnect, handleCode } from './handlers/command.js';
 
 export function createBot(): Bot {
   const bot = new Bot(config.TELEGRAM_BOT_TOKEN);
@@ -20,6 +20,8 @@ export function createBot(): Bot {
   bot.command('reminders', handleReminders);
   bot.command('ideas', handleIdeas);
   bot.command('tasks', handleTasks);
+  bot.command('connect', handleConnect);
+  bot.command('code', handleCode);
   bot.command('help', handleHelp);
 
   bot.on('message:text', async (ctx) => {

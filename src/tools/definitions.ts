@@ -1,6 +1,109 @@
 import type { FunctionDeclaration } from '@google/generative-ai';
 
 export const toolDefinitions: FunctionDeclaration[] = [
+  // ─── Gmail ───
+  {
+    name: 'gmail_list_unread',
+    description: 'List unread emails in Champ\'s Gmail inbox.',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        limit: { type: 'NUMBER' as any, description: 'Max number of emails to return. Default 5.' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'gmail_search',
+    description: 'Search Gmail with a query (supports Gmail search operators like from:, subject:, is:unread etc.)',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        query: { type: 'STRING' as any, description: 'Gmail search query e.g. "from:boss@example.com subject:report"' },
+        limit: { type: 'NUMBER' as any, description: 'Max results. Default 5.' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'gmail_read',
+    description: 'Read the full content of a specific email by message ID.',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        message_id: { type: 'STRING' as any, description: 'Gmail message ID (from gmail_list_unread or gmail_search)' },
+      },
+      required: ['message_id'],
+    },
+  },
+  {
+    name: 'gmail_send',
+    description: 'Send an email from Champ\'s Gmail account.',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        to: { type: 'STRING' as any, description: 'Recipient email address' },
+        subject: { type: 'STRING' as any, description: 'Email subject' },
+        body: { type: 'STRING' as any, description: 'Plain text email body' },
+        reply_to_message_id: { type: 'STRING' as any, description: 'Optional: message ID to reply to (for threading)' },
+      },
+      required: ['to', 'subject', 'body'],
+    },
+  },
+  // ─── Google Calendar ───
+  {
+    name: 'calendar_list_events',
+    description: 'List upcoming calendar events for Champ.',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        days: { type: 'NUMBER' as any, description: 'How many days ahead to look. Default 7.' },
+        max_results: { type: 'NUMBER' as any, description: 'Max events to return. Default 10.' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'calendar_create_event',
+    description: 'Create a new calendar event for Champ.',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        title: { type: 'STRING' as any, description: 'Event title' },
+        start_datetime: { type: 'STRING' as any, description: 'ISO 8601 datetime e.g. "2026-05-15T10:00:00+07:00" or date "2026-05-15" for all-day' },
+        end_datetime: { type: 'STRING' as any, description: 'ISO 8601 end datetime. Defaults to 1 hour after start.' },
+        description: { type: 'STRING' as any, description: 'Optional event description' },
+        location: { type: 'STRING' as any, description: 'Optional location' },
+        all_day: { type: 'BOOLEAN' as any, description: 'Set true for all-day events' },
+      },
+      required: ['title', 'start_datetime'],
+    },
+  },
+  // ─── Session bridge ───
+  {
+    name: 'get_session_context',
+    description: 'Get the latest work session log from Champ\'s computer (what the team was working on in Claude Code).',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        limit: { type: 'NUMBER' as any, description: 'Max log entries per session to show. Default 5.' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'write_note_to_claude',
+    description: 'Write a note or instruction that Ace (Claude Code) will read at the start of the next computer session.',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        note: { type: 'STRING' as any, description: 'The note or instruction to leave for Ace' },
+        topic: { type: 'STRING' as any, description: 'Topic tag e.g. "task", "reminder", "idea". Default: general' },
+      },
+      required: ['note'],
+    },
+  },
+
   {
     name: 'save_idea',
     description: 'Save an idea from Champ to Firestore for future reference.',

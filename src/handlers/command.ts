@@ -1,6 +1,7 @@
 import type { Context } from 'grammy';
 import { listReminders } from '../tools/list-reminders.js';
 import { db } from '../firebase.js';
+import { isGoogleConfigured, getAuthUrl, isConnected } from '../services/google-auth.js';
 
 export async function handleStart(ctx: Context) {
   await ctx.reply(
@@ -50,6 +51,48 @@ export async function handleTasks(ctx: Context) {
   await ctx.reply(lines.join('\n'), { parse_mode: 'Markdown' });
 }
 
+export async function handleConnect(ctx: Context) {
+  if (!isGoogleConfigured()) {
+    await ctx.reply('ยังไม่ได้ตั้งค่า GOOGLE_CLIENT_ID/SECRET ในระบบค่ะ\nกรุณาเพิ่ม env vars ใน Railway ก่อนนะคะ');
+    return;
+  }
+  if (await isConnected()) {
+    await ctx.reply('เชื่อม Google แล้วค่ะ ✅\nใช้ Gmail และ Calendar ได้เลย\n\nถ้าอยากเชื่อมใหม่ ให้คลิก link ด้านล่างค่ะ:\n' + getAuthUrl());
+    return;
+  }
+  const url = getAuthUrl();
+  await ctx.reply(
+    '*เชื่อม Google Account*\n\n' +
+    '1. คลิก link ด้านล่าง\n' +
+    '2. อนุมัติ Google Account\n' +
+    '3. Browser จะเด้งไป localhost (error ปกติ)\n' +
+    '4. *copy code จาก URL bar* — ส่วนที่อยู่หลัง `?code=` จนถึง `&scope`\n' +
+    '5. ส่ง `/code <code>` กลับมาที่นี่\n\n' +
+    url,
+    { parse_mode: 'Markdown' }
+  );
+}
+
+export async function handleCode(ctx: Context) {
+  const text = ctx.message?.text ?? '';
+  const code = text.replace('/code', '').trim();
+
+  if (!code) {
+    await ctx.reply('กรุณาส่ง code ด้วยนะคะ เช่น `/code 4/0AX4...`', { parse_mode: 'Markdown' });
+    return;
+  }
+
+  try {
+    if (ctx.chat) await ctx.api.sendChatAction(ctx.chat.id, 'typing');
+    const { exchangeCode } = await import('../services/google-auth.js');
+    await exchangeCode(code);
+    await ctx.reply('เชื่อม Google สำเร็จแล้วค่ะ ✅\nตอนนี้ใช้ Gmail และ Calendar ได้เลย');
+  } catch (err: any) {
+    console.error('[handleCode error]', err);
+    await ctx.reply('เชื่อมไม่สำเร็จค่ะ — code อาจหมดอายุหรือไม่ถูกต้อง\nลอง /connect ใหม่อีกครั้งนะคะ');
+  }
+}
+
 export async function handleHelp(ctx: Context) {
   await ctx.reply(
     '*Vera — วิธีใช้งาน*\n\n' +
@@ -58,7 +101,7 @@ export async function handleHelp(ctx: Context) {
     '⏰ "เตือนฉันพรุ่งนี้ 9 โมงเรื่อง meeting"\n' +
     '📋 "ให้ Kai ทำ deploy ก่อน 5 โมง"\n' +
     '🔍 "ฉันพูดเรื่อง Firestore เมื่อไหร่?"\n\n' +
-    'คำสั่ง: /reminders /ideas /tasks /help',
+    'คำสั่ง: /reminders /ideas /tasks /connect /help',
     { parse_mode: 'Markdown' }
   );
 }

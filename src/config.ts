@@ -10,6 +10,10 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production']).default('development'),
   PORT: z.string().default('3000'),
   MAX_MEMORY_MESSAGES: z.string().default('20'),
+  // Google OAuth2 (Gmail + Calendar) — optional, set to enable /connect
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_REDIRECT_URI: z.string().optional(),
 });
 
 export const config = envSchema.parse(process.env);
