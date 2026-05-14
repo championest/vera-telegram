@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.27.0",
+    "@google/generative-ai": "^0.24.1",
+    "dotenv": "^17.4.2",
     "firebase-admin": "^12.1.0",
     "grammy": "^1.27.0",
     "node-cron": "^3.0.3",

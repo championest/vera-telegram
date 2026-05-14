@@ -1,57 +1,55 @@
-import { anthropic, MODEL } from '../anthropic.js';
+import { genAI, MODEL_NAME } from '../gemini.js';
 import { toolDefinitions } from '../tools/definitions.js';
 import { executeToolCall } from '../tools/handlers.js';
 import { loadHistory, appendMessage } from '../memory/conversation.js';
 import { buildSystemPrompt } from '../persona/vera.js';
-import type Anthropic from '@anthropic-ai/sdk';
+import type { Content } from '@google/generative-ai';
 
 export async function handleUserMessage(userId: string, userText: string): Promise<string> {
   await appendMessage(userId, 'user', userText);
 
   const history = await loadHistory(userId);
 
-  const messages: Anthropic.MessageParam[] = history.length > 0
-    ? history.slice(0, -1).concat([{ role: 'user', content: userText }])
-    : [{ role: 'user', content: userText }];
+  // Convert history to Gemini Content format (exclude the last user message — sent via sendMessage)
+  const geminiHistory: Content[] = history.slice(0, -1).map(m => ({
+    role: m.role === 'user' ? 'user' : 'model',
+    parts: [{ text: m.content }],
+  }));
 
-  const systemPrompt = buildSystemPrompt(new Date());
-  let currentMessages = [...messages];
+  const model = genAI.getGenerativeModel({
+    model: MODEL_NAME,
+    systemInstruction: buildSystemPrompt(new Date()),
+    tools: [{ functionDeclarations: toolDefinitions }],
+  });
 
+  const chat = model.startChat({ history: geminiHistory });
+
+  let result = await chat.sendMessage(userText);
+
+  // Agentic tool loop
   while (true) {
-    const response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 2048,
-      system: systemPrompt,
-      tools: toolDefinitions,
-      messages: currentMessages,
-    });
+    const parts = result.response.candidates?.[0]?.content.parts ?? [];
+    const fnCalls = parts.filter(p => p.functionCall);
 
-    if (response.stop_reason === 'end_turn') {
-      const text = response.content
-        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-        .map(b => b.text)
-        .join('');
+    if (fnCalls.length === 0) break;
 
-      await appendMessage(userId, 'assistant', text);
-      return text;
-    }
+    const fnResponses = await Promise.all(
+      fnCalls.map(async p => {
+        const fn = p.functionCall!;
+        const output = await executeToolCall(fn.name, fn.args as Record<string, unknown>, userId);
+        return {
+          functionResponse: {
+            name: fn.name,
+            response: { result: output },
+          },
+        };
+      })
+    );
 
-    if (response.stop_reason === 'tool_use') {
-      currentMessages.push({ role: 'assistant', content: response.content });
-
-      const toolResults: Anthropic.ToolResultBlockParam[] = [];
-      for (const block of response.content) {
-        if (block.type === 'tool_use') {
-          const result = await executeToolCall(block, userId);
-          toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: result });
-        }
-      }
-      currentMessages.push({ role: 'user', content: toolResults });
-      continue;
-    }
-
-    break;
+    result = await chat.sendMessage(fnResponses);
   }
 
-  return 'ขออภัยค่ะ ไม่สามารถประมวลผลได้ในขณะนี้';
+  const text = result.response.text();
+  await appendMessage(userId, 'assistant', text);
+  return text;
 }

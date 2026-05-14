@@ -1,11 +1,12 @@
 import { db } from '../firebase.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import { config } from '../config.js';
-import type Anthropic from '@anthropic-ai/sdk';
+
+export type MessageParam = { role: 'user' | 'assistant'; content: string };
 
 const MAX = parseInt(config.MAX_MEMORY_MESSAGES, 10);
 
-export async function loadHistory(userId: string): Promise<Anthropic.MessageParam[]> {
+export async function loadHistory(userId: string): Promise<MessageParam[]> {
   const snap = await db.collection('vera-memory')
     .where('userId', '==', userId)
     .orderBy('timestamp', 'asc')
