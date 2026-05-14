@@ -30,7 +30,12 @@ export function createBot(): Bot {
 
     try {
       const reply = await handleUserMessage(userId, text);
-      await ctx.reply(reply, { parse_mode: 'Markdown' });
+      try {
+        await ctx.reply(reply, { parse_mode: 'Markdown' });
+      } catch {
+        // Markdown parse failure — retry as plain text
+        await ctx.reply(reply);
+      }
     } catch (err) {
       console.error('[Message handler error]', err);
       await ctx.reply('ขออภัยค่ะ เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
