@@ -7,7 +7,6 @@ import { google } from 'googleapis';
 const CHAT_ID = parseInt(config.TELEGRAM_OWNER_CHAT_ID, 10);
 async function buildMorningBrief() {
     const lines = ['☀️ *Good morning คุณ Champ!*\n'];
-    let hasCalendarEvents = false;
     // Unread notes from claude-notes
     try {
         const notesSnap = await db.collection('claude-notes')
@@ -62,7 +61,6 @@ async function buildMorningBrief() {
                 });
                 const events = res.data.items ?? [];
                 if (events.length > 0) {
-                    hasCalendarEvents = true;
                     lines.push('*📅 นัดวันนี้*');
                     events.forEach(ev => {
                         const start = ev.start?.dateTime
@@ -97,29 +95,23 @@ async function buildMorningBrief() {
         });
         lines.push('');
     }
-    if (hasCalendarEvents) {
-        lines.push('_พิมพ์อะไรก็ได้เลยค่ะ — Vera พร้อม_ 🙌');
-    }
-    else {
-        lines.push('_วันนี้ว่าง — อยากให้ Vera ช่วยจัดตารางมั้ยคะ?_ 👇');
-    }
-    return { text: lines.join('\n'), hasCalendarEvents };
+    lines.push('_วันนี้ Champ อยากทำอะไรบ้างคะ?_ 👇');
+    return { text: lines.join('\n') };
 }
 export function startMorningBriefScheduler(bot) {
     // 7:00 AM Bangkok = 00:00 UTC
     cron.schedule('0 0 * * *', async () => {
         try {
-            const { text, hasCalendarEvents } = await buildMorningBrief();
-            const messageOptions = { parse_mode: 'Markdown' };
-            if (!hasCalendarEvents) {
-                messageOptions.reply_markup = {
+            const { text } = await buildMorningBrief();
+            await bot.api.sendMessage(CHAT_ID, text, {
+                parse_mode: 'Markdown',
+                reply_markup: {
                     inline_keyboard: [[
                             { text: '📋 ช่วยวางแผนวันนี้', callback_data: 'brief:plan_day' },
-                            { text: '✅ โอเค วันว่าง', callback_data: 'brief:free_day' },
+                            { text: '💬 จะพิมพ์เอง', callback_data: 'brief:free_day' },
                         ]],
-                };
-            }
-            await bot.api.sendMessage(CHAT_ID, text, messageOptions);
+                },
+            });
         }
         catch (err) {
             console.error('[Morning brief error]', err);
@@ -129,15 +121,14 @@ export function startMorningBriefScheduler(bot) {
 }
 // Exported so bot.ts can trigger manually (e.g. /brief command)
 export async function sendMorningBrief(bot) {
-    const { text, hasCalendarEvents } = await buildMorningBrief();
-    const messageOptions = { parse_mode: 'Markdown' };
-    if (!hasCalendarEvents) {
-        messageOptions.reply_markup = {
+    const { text } = await buildMorningBrief();
+    await bot.api.sendMessage(CHAT_ID, text, {
+        parse_mode: 'Markdown',
+        reply_markup: {
             inline_keyboard: [[
                     { text: '📋 ช่วยวางแผนวันนี้', callback_data: 'brief:plan_day' },
-                    { text: '✅ โอเค วันว่าง', callback_data: 'brief:free_day' },
+                    { text: '💬 จะพิมพ์เอง', callback_data: 'brief:free_day' },
                 ]],
-        };
-    }
-    await bot.api.sendMessage(CHAT_ID, text, messageOptions);
+        },
+    });
 }
