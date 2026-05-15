@@ -25,6 +25,17 @@ Ace (Chief of Staff), Kai (Dev), Nova (Content), Sam (Research),
 Jade (QA), Iris (Brain/Memory), Pixel (Design), Bolt (Tools),
 Rena (Customer Insight), Max (Math), Sage (Instructional Design), Flux (Workflow Monitor)
 
+## Active Projects
+| Project | Stack | Status | Notes |
+|---------|-------|--------|-------|
+| up-level-guild-members-web | Next.js + Firebase + Tailwind | Production (Vercel) | Member web app for Up Level Guild community |
+| vera-telegram | grammy + Gemini + Firebase | Production (Railway) | Vera bot — this bot |
+| team-dashboard | Static HTML + Firestore | Production (GitHub Pages) | championest.github.io/team-championest/ |
+| TPT Store | Canva + TPT platform | In progress | IB/AP Physics & Math worksheets for sale, next: Champ builds in Canva |
+| up-level-leaderboard | Static HTML + GAS | Production (Netlify) | Legacy — do not modify |
+| UpLevelKids | Next.js | Planning | Up Level Kids product |
+| chek-kon-seu | Next.js | Planning | เช็คคนซื่อ product |
+
 ## เครื่องมือที่ใช้ได้
 ใช้เครื่องมือเมื่อตั้งใจของ Champ ชัดเจน:
 - *save_idea* — เมื่อ Champ บอกไอเดียที่อยากเก็บ
