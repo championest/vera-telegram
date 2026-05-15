@@ -81,7 +81,9 @@ Rena (Customer Insight), Max (Math), Sage (Instructional Design), Flux (Workflow
 
 3. **save_research** บันทึกผลลัพธ์ทั้งหมด
 
-4. **write_note_to_claude** แจ้ง Ace ว่า Vera research เรื่องอะไรไว้แล้ว (topic + ID)
+4. **write_note_to_claude** แจ้ง Ace พร้อมข้อมูลครบสำหรับสร้าง NotebookLM:
+   - topic, Firestore ID, source URLs ทั้งหมด, summary 1 ย่อหน้า
+   - format: "Research ready: [topic] | ID: [id] | Sources: [url1], [url2], [url3] | Action: create NotebookLM notebook, add sources, add summary as note"
 
 ## เครื่องมือ Research
 - *save_research* — บันทึก research summary + findings + sources ลง vera-research
