@@ -229,6 +229,59 @@ export const toolDefinitions: FunctionDeclaration[] = [
       required: [],
     },
   },
+  // ─── Calendar edit/delete ───
+  {
+    name: 'calendar_update_event',
+    description: 'Update an existing Google Calendar event.',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        event_id: { type: 'STRING' as any, description: 'Google Calendar event ID' },
+        title: { type: 'STRING' as any, description: 'New event title' },
+        start_datetime: { type: 'STRING' as any, description: 'New start datetime ISO 8601' },
+        end_datetime: { type: 'STRING' as any, description: 'New end datetime ISO 8601' },
+        description: { type: 'STRING' as any, description: 'New event description' },
+        location: { type: 'STRING' as any, description: 'New location' },
+        all_day: { type: 'BOOLEAN' as any, description: 'All-day event flag' },
+      },
+      required: ['event_id'],
+    },
+  },
+  {
+    name: 'calendar_delete_event',
+    description: 'Delete a Google Calendar event.',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        event_id: { type: 'STRING' as any, description: 'Google Calendar event ID to delete' },
+      },
+      required: ['event_id'],
+    },
+  },
+  // ─── Long-term memory ───
+  {
+    name: 'save_fact',
+    description: 'Save an important fact about Champ to long-term memory (persists beyond conversation history).',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        fact: { type: 'STRING' as any, description: 'The fact to remember, e.g. "Champ prefers morning meetings"' },
+        category: { type: 'STRING' as any, description: 'Category tag e.g. preference, business, personal, project. Default: general' },
+      },
+      required: ['fact'],
+    },
+  },
+  {
+    name: 'recall_facts',
+    description: 'Retrieve facts saved in long-term memory about Champ.',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        category: { type: 'STRING' as any, description: 'Optional: filter by category. Leave empty for all facts.' },
+      },
+      required: [],
+    },
+  },
   // ─── Task update ───
   {
     name: 'log_team_task',

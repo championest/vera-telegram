@@ -3,9 +3,13 @@ import { toolDefinitions } from '../tools/definitions.js';
 import { executeToolCall } from '../tools/handlers.js';
 import { loadHistory, appendMessage } from '../memory/conversation.js';
 import { buildSystemPrompt } from '../persona/vera.js';
+import { loadFactsForPrompt } from '../tools/facts.js';
 export async function handleUserMessage(userId, userText) {
     await appendMessage(userId, 'user', userText);
-    const history = await loadHistory(userId);
+    const [history, longTermMemory] = await Promise.all([
+        loadHistory(userId),
+        loadFactsForPrompt(userId),
+    ]);
     // Convert history to Gemini Content format (exclude the last user message — sent via sendMessage)
     // Gemini requires history to start with 'user' role — drop leading model messages if history is corrupted
     const rawHistory = history.slice(0, -1).map(m => ({
@@ -16,7 +20,7 @@ export async function handleUserMessage(userId, userText) {
     const geminiHistory = firstUserIdx > 0 ? rawHistory.slice(firstUserIdx) : rawHistory;
     const model = genAI.getGenerativeModel({
         model: MODEL_NAME,
-        systemInstruction: buildSystemPrompt(new Date()),
+        systemInstruction: buildSystemPrompt(new Date(), longTermMemory),
         tools: [{ functionDeclarations: toolDefinitions }],
     });
     const chat = model.startChat({ history: geminiHistory });

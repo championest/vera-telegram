@@ -9,7 +9,9 @@ import { gmailListUnread, gmailSearch, gmailRead, gmailMarkRead, gmailTrash } fr
 import { gmailSend } from './gmail-send.js';
 import { calendarListEvents } from './calendar-list.js';
 import { calendarCreateEvent } from './calendar-create.js';
+import { calendarUpdateEvent, calendarDeleteEvent } from './calendar-update.js';
 import { getSessionContext, writeNoteToClaude, readAceNotes } from './session-bridge.js';
+import { saveFact, recallFacts } from './facts.js';
 export async function executeToolCall(name, args, userId) {
     try {
         switch (name) {
@@ -28,9 +30,13 @@ export async function executeToolCall(name, args, userId) {
             case 'gmail_trash': return await gmailTrash(args);
             case 'calendar_list_events': return await calendarListEvents(args);
             case 'calendar_create_event': return await calendarCreateEvent(args);
+            case 'calendar_update_event': return await calendarUpdateEvent(args);
+            case 'calendar_delete_event': return await calendarDeleteEvent(args);
             case 'get_session_context': return await getSessionContext(args);
             case 'write_note_to_claude': return await writeNoteToClaude(args);
             case 'read_ace_notes': return await readAceNotes(args);
+            case 'save_fact': return await saveFact(args, userId);
+            case 'recall_facts': return await recallFacts(args, userId);
             default:
                 return `Unknown tool: ${name}`;
         }

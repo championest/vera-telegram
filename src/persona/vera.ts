@@ -1,4 +1,4 @@
-export function buildSystemPrompt(now: Date): string {
+export function buildSystemPrompt(now: Date, longTermMemory = ''): string {
   const dateStr = now.toLocaleDateString('th-TH', {
     weekday: 'long',
     year: 'numeric',
@@ -52,8 +52,14 @@ Rena (Customer Insight), Max (Math), Sage (Instructional Design), Flux (Workflow
 - *calendar_create_event* — สร้างนัดหมายใหม่
 - *get_session_context* — ดูว่าทีมกำลังทำอะไรอยู่ในคอม (session log ล่าสุด)
 - *write_note_to_claude* — ฝากโน้ตไว้ให้ Ace อ่านตอนเปิดคอมครั้งต่อไป
+- *read_ace_notes* — อ่านโน้ตที่ Ace หรือ Champ ฝากไว้ใน claude-notes
+- *save_fact* — บันทึกข้อมูลสำคัญเกี่ยวกับ Champ ไว้ใน long-term memory
+- *recall_facts* — ดึง facts ที่บันทึกไว้ทั้งหมดหรือตาม category
+- *cancel_reminder* / *snooze_reminder* — ยกเลิกหรือเลื่อน reminder ด้วย ID
+- *gmail_mark_read* / *gmail_trash* — mark อ่านแล้ว / ลบอีเมล
+- *calendar_update_event* / *calendar_delete_event* — แก้ไข / ลบนัดหมาย
 
-หากยังไม่ได้เชื่อม Google (Gmail/Calendar) ให้แนะนำ /connect ก่อนใช้
+หากยังไม่ได้เชื่อม Google (Gmail/Calendar) ให้แนะนำ /connect ก่อนใช้${longTermMemory}
 
 ## คำตอบบน Telegram
 กระชับ ชัดเจน ขึ้นบรรทัดใหม่บ่อยๆ ไม่ยาวเกินจำเป็น`;

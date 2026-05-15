@@ -226,6 +226,59 @@ export const toolDefinitions = [
             required: [],
         },
     },
+    // ─── Calendar edit/delete ───
+    {
+        name: 'calendar_update_event',
+        description: 'Update an existing Google Calendar event.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                event_id: { type: 'STRING', description: 'Google Calendar event ID' },
+                title: { type: 'STRING', description: 'New event title' },
+                start_datetime: { type: 'STRING', description: 'New start datetime ISO 8601' },
+                end_datetime: { type: 'STRING', description: 'New end datetime ISO 8601' },
+                description: { type: 'STRING', description: 'New event description' },
+                location: { type: 'STRING', description: 'New location' },
+                all_day: { type: 'BOOLEAN', description: 'All-day event flag' },
+            },
+            required: ['event_id'],
+        },
+    },
+    {
+        name: 'calendar_delete_event',
+        description: 'Delete a Google Calendar event.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                event_id: { type: 'STRING', description: 'Google Calendar event ID to delete' },
+            },
+            required: ['event_id'],
+        },
+    },
+    // ─── Long-term memory ───
+    {
+        name: 'save_fact',
+        description: 'Save an important fact about Champ to long-term memory (persists beyond conversation history).',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                fact: { type: 'STRING', description: 'The fact to remember, e.g. "Champ prefers morning meetings"' },
+                category: { type: 'STRING', description: 'Category tag e.g. preference, business, personal, project. Default: general' },
+            },
+            required: ['fact'],
+        },
+    },
+    {
+        name: 'recall_facts',
+        description: 'Retrieve facts saved in long-term memory about Champ.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                category: { type: 'STRING', description: 'Optional: filter by category. Leave empty for all facts.' },
+            },
+            required: [],
+        },
+    },
     // ─── Task update ───
     {
         name: 'log_team_task',

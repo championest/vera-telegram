@@ -1,0 +1,48 @@
+import { google } from 'googleapis';
+import { getAuthedClient, isConnected } from '../services/google-auth.js';
+const NOT_CONNECTED = 'ยังไม่ได้เชื่อม Google ค่ะ — ส่ง /connect เพื่อเริ่มต้น';
+export async function calendarUpdateEvent(args) {
+    if (!await isConnected())
+        return NOT_CONNECTED;
+    const auth = await getAuthedClient();
+    if (!auth)
+        return NOT_CONNECTED;
+    const eventId = String(args.event_id ?? '').trim();
+    if (!eventId)
+        return 'กรุณาระบุ event_id ค่ะ';
+    const calendar = google.calendar({ version: 'v3', auth });
+    const patch = {};
+    if (args.title)
+        patch['summary'] = args.title;
+    if (args.description)
+        patch['description'] = args.description;
+    if (args.location)
+        patch['location'] = args.location;
+    if (args.start_datetime) {
+        const isAllDay = args.all_day === true || !String(args.start_datetime).includes('T');
+        patch['start'] = isAllDay
+            ? { date: String(args.start_datetime).slice(0, 10) }
+            : { dateTime: args.start_datetime, timeZone: 'Asia/Bangkok' };
+    }
+    if (args.end_datetime) {
+        const isAllDay = args.all_day === true || !String(args.end_datetime).includes('T');
+        patch['end'] = isAllDay
+            ? { date: String(args.end_datetime).slice(0, 10) }
+            : { dateTime: args.end_datetime, timeZone: 'Asia/Bangkok' };
+    }
+    await calendar.events.patch({ calendarId: 'primary', eventId, requestBody: patch });
+    return `อัพเดตนัด ${eventId} สำเร็จค่ะ ✅`;
+}
+export async function calendarDeleteEvent(args) {
+    if (!await isConnected())
+        return NOT_CONNECTED;
+    const auth = await getAuthedClient();
+    if (!auth)
+        return NOT_CONNECTED;
+    const eventId = String(args.event_id ?? '').trim();
+    if (!eventId)
+        return 'กรุณาระบุ event_id ค่ะ';
+    const calendar = google.calendar({ version: 'v3', auth });
+    await calendar.events.delete({ calendarId: 'primary', eventId });
+    return `ลบนัด ${eventId} สำเร็จค่ะ 🗑`;
+}

@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { createBot } from './bot.js';
 import { startReminderScheduler } from './scheduler/reminders.js';
+import { startMorningBriefScheduler } from './scheduler/morning-brief.js';
 import { createHttpServer } from './server/http.js';
 
 async function main() {
@@ -10,6 +11,7 @@ async function main() {
 
   const bot = createBot();
   startReminderScheduler(bot);
+  startMorningBriefScheduler(bot);
 
   await bot.start({
     onStart: (info) => console.log(`Vera online as @${info.username}`),
