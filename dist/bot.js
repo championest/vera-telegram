@@ -193,7 +193,7 @@ ${ideas || '(ไม่มี)'}
         }
         catch (err) {
             console.error('[Message handler error]', err);
-            await ctx.reply('ขออภัยค่ะ เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+            await ctx.reply(`⚠️ ${err?.message?.slice(0, 200) ?? String(err).slice(0, 200)}`);
         }
     });
     bot.catch((err) => {
