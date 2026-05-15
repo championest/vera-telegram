@@ -182,9 +182,10 @@ ${ideas || '(ไม่มี)'}
       } catch {
         await ctx.reply(reply);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Message handler error]', err);
-      await ctx.reply('ขออภัยค่ะ เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+      const detail = err?.message ?? String(err);
+      await ctx.reply(`⚠️ Error: ${detail.slice(0, 300)}`);
     }
   });
 
