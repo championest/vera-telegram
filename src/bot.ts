@@ -184,8 +184,7 @@ ${ideas || '(ไม่มี)'}
       }
     } catch (err: any) {
       console.error('[Message handler error]', err);
-      const detail = err?.message ?? String(err);
-      await ctx.reply(`⚠️ Error: ${detail.slice(0, 300)}`);
+      await ctx.reply('ขออภัยค่ะ เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
     }
   });
 
