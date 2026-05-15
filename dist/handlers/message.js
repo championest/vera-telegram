@@ -57,6 +57,8 @@ export async function handleUserMessage(userId, userText) {
             text = 'ไม่สามารถรับ response จาก Gemini ได้ค่ะ — กรุณาลองใหม่อีกครั้ง';
         }
     }
+    if (!text?.trim())
+        text = '✅ ดำเนินการเสร็จแล้วค่ะ';
     await appendMessage(userId, 'assistant', text);
     return text;
 }
