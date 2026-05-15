@@ -3,9 +3,18 @@ import { FieldValue } from 'firebase-admin/firestore';
 export async function saveResearch(args) {
     const topic = String(args.topic ?? '');
     const summary = String(args.summary ?? '');
-    const findings = args.findings ?? [];
-    const sources = args.sources ?? [];
     const tags = args.tags ?? [];
+    // Parse JSON strings (Gemini can't send nested objects in arrays)
+    let findings = [];
+    let sources = [];
+    try {
+        findings = JSON.parse(String(args.findings_json ?? '[]'));
+    }
+    catch { /* keep empty */ }
+    try {
+        sources = JSON.parse(String(args.sources_json ?? '[]'));
+    }
+    catch { /* keep empty */ }
     if (!topic || !summary)
         return 'กรุณาระบุ topic และ summary';
     const ref = await db.collection('vera-research').add({

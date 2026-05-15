@@ -15,9 +15,13 @@ interface Source {
 export async function saveResearch(args: Record<string, unknown>): Promise<string> {
   const topic = String(args.topic ?? '');
   const summary = String(args.summary ?? '');
-  const findings = (args.findings as Finding[]) ?? [];
-  const sources = (args.sources as Source[]) ?? [];
   const tags = (args.tags as string[]) ?? [];
+
+  // Parse JSON strings (Gemini can't send nested objects in arrays)
+  let findings: Finding[] = [];
+  let sources: Source[] = [];
+  try { findings = JSON.parse(String(args.findings_json ?? '[]')); } catch { /* keep empty */ }
+  try { sources = JSON.parse(String(args.sources_json ?? '[]')); } catch { /* keep empty */ }
 
   if (!topic || !summary) return 'กรุณาระบุ topic และ summary';
 

@@ -288,28 +288,13 @@ export const toolDefinitions = [
             properties: {
                 topic: { type: 'STRING', description: 'Research topic (Thai or English)' },
                 summary: { type: 'STRING', description: '2-3 paragraph synthesis of all findings in Thai' },
-                findings: {
-                    type: 'ARRAY',
-                    items: {
-                        type: 'OBJECT',
-                        properties: {
-                            point: { type: 'STRING', description: 'The finding or fact' },
-                            confidence: { type: 'STRING', enum: ['verified', 'uncertain', 'conflicting'], description: 'Confidence level based on source agreement' },
-                            source_url: { type: 'STRING', description: 'URL of the source supporting this finding (optional)' },
-                        },
-                    },
-                    description: 'Key findings with confidence labels',
+                findings_json: {
+                    type: 'STRING',
+                    description: 'JSON array of findings. Each item: {"point":"...","confidence":"verified|uncertain|conflicting","source_url":"..."} e.g. [{"point":"X","confidence":"verified","source_url":"https://..."}]',
                 },
-                sources: {
-                    type: 'ARRAY',
-                    items: {
-                        type: 'OBJECT',
-                        properties: {
-                            title: { type: 'STRING' },
-                            url: { type: 'STRING' },
-                        },
-                    },
-                    description: 'All sources consulted',
+                sources_json: {
+                    type: 'STRING',
+                    description: 'JSON array of sources. Each item: {"title":"...","url":"..."} e.g. [{"title":"BBC","url":"https://bbc.com/..."}]',
                 },
                 tags: {
                     type: 'ARRAY',
@@ -317,7 +302,7 @@ export const toolDefinitions = [
                     description: 'Tags for categorization e.g. ["business", "tech", "education"]',
                 },
             },
-            required: ['topic', 'summary', 'findings'],
+            required: ['topic', 'summary'],
         },
     },
     {

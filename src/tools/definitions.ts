@@ -291,28 +291,13 @@ export const toolDefinitions: FunctionDeclaration[] = [
       properties: {
         topic: { type: 'STRING' as any, description: 'Research topic (Thai or English)' },
         summary: { type: 'STRING' as any, description: '2-3 paragraph synthesis of all findings in Thai' },
-        findings: {
-          type: 'ARRAY' as any,
-          items: {
-            type: 'OBJECT' as any,
-            properties: {
-              point: { type: 'STRING' as any, description: 'The finding or fact' },
-              confidence: { type: 'STRING' as any, enum: ['verified', 'uncertain', 'conflicting'], description: 'Confidence level based on source agreement' },
-              source_url: { type: 'STRING' as any, description: 'URL of the source supporting this finding (optional)' },
-            },
-          },
-          description: 'Key findings with confidence labels',
+        findings_json: {
+          type: 'STRING' as any,
+          description: 'JSON array of findings. Each item: {"point":"...","confidence":"verified|uncertain|conflicting","source_url":"..."} e.g. [{"point":"X","confidence":"verified","source_url":"https://..."}]',
         },
-        sources: {
-          type: 'ARRAY' as any,
-          items: {
-            type: 'OBJECT' as any,
-            properties: {
-              title: { type: 'STRING' as any },
-              url: { type: 'STRING' as any },
-            },
-          },
-          description: 'All sources consulted',
+        sources_json: {
+          type: 'STRING' as any,
+          description: 'JSON array of sources. Each item: {"title":"...","url":"..."} e.g. [{"title":"BBC","url":"https://bbc.com/..."}]',
         },
         tags: {
           type: 'ARRAY' as any,
@@ -320,7 +305,7 @@ export const toolDefinitions: FunctionDeclaration[] = [
           description: 'Tags for categorization e.g. ["business", "tech", "education"]',
         },
       },
-      required: ['topic', 'summary', 'findings'],
+      required: ['topic', 'summary'],
     },
   },
   {
