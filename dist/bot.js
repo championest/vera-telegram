@@ -3,6 +3,10 @@ import { config } from './config.js';
 import { handleUserMessage, handleMediaMessage } from './handlers/message.js';
 import { handleStart, handleReminders, handleIdeas, handleTasks, handleHelp, handleConnect, handleCode, handleStatus, handleMenu } from './handlers/command.js';
 import { handleReminderCallback } from './scheduler/reminders.js';
+import { calendarListEvents } from './tools/calendar-list.js';
+import { gmailListUnread } from './tools/gmail-read.js';
+import { listReminders } from './tools/list-reminders.js';
+import { getSessionContext } from './tools/session-bridge.js';
 export function createBot() {
     const bot = new Bot(config.TELEGRAM_BOT_TOKEN);
     const ownerId = parseInt(config.TELEGRAM_OWNER_CHAT_ID, 10);
@@ -84,26 +88,43 @@ export function createBot() {
         const buf = await downloadTelegramFile(ctx, doc.file_id);
         await sendMediaReply(ctx, buf, mime, ctx.message.caption ?? null);
     });
-    // Keyboard shortcut → natural language mapping
-    const KEYBOARD_MAP = {
-        '📅 ตาราง': 'ดู calendar วันนี้ให้หน่อยค่ะ',
-        '📧 เมล': 'ดูอีเมลที่ยังไม่ได้อ่านให้หน่อยค่ะ',
-        '⏰ Reminder': 'ดู reminder ที่ตั้งไว้ทั้งหมดให้หน่อยค่ะ',
-        '💼 งานทีม': 'สรุป task ของทีมล่าสุดให้หน่อยค่ะ',
+    const KEYBOARD_DIRECT = {
+        '📅 ตาราง': () => calendarListEvents({ days: 7 }),
+        '📧 เมล': () => gmailListUnread({ limit: 5 }),
+        '⏰ Reminder': (uid) => listReminders({}, uid),
+        '💼 งานทีม': () => getSessionContext({ limit: 10 }),
+        '🔍 ค้นหา...': async () => 'พิมพ์ตามนี้ได้เลยค่ะ เช่น "ค้นหา ราคา iPhone 16" หรือ "เช็คข่าว..."',
+        '📝 บันทึกไอเดีย...': async () => 'พิมพ์ตามนี้ได้เลยค่ะ เช่น "บันทึกไอเดีย: อยากทำแอป..."',
     };
     bot.on('message:text', async (ctx) => {
         const userId = String(ctx.from.id);
         const rawText = ctx.message.text;
-        // If it's a keyboard shortcut, use mapped query; otherwise pass through
-        const text = KEYBOARD_MAP[rawText] ?? rawText;
         await ctx.api.sendChatAction(ctx.chat.id, 'typing');
+        // Keyboard button → direct tool call (no Gemini roundtrip)
+        const directHandler = KEYBOARD_DIRECT[rawText];
+        if (directHandler) {
+            try {
+                const result = await directHandler(userId);
+                try {
+                    await ctx.reply(result, { parse_mode: 'Markdown' });
+                }
+                catch {
+                    await ctx.reply(result);
+                }
+            }
+            catch (err) {
+                console.error('[Keyboard handler error]', err);
+                await ctx.reply(`เกิดข้อผิดพลาดค่ะ: ${err.message ?? 'unknown'}`);
+            }
+            return;
+        }
+        // All other text → Gemini agentic loop
         try {
-            const reply = await handleUserMessage(userId, text);
+            const reply = await handleUserMessage(userId, rawText);
             try {
                 await ctx.reply(reply, { parse_mode: 'Markdown' });
             }
             catch {
-                // Markdown parse failure — retry as plain text
                 await ctx.reply(reply);
             }
         }
