@@ -1,37 +1,42 @@
 import { db } from '../firebase.js';
 import admin from 'firebase-admin';
 
-export async function getSessionContext(args: Record<string, unknown>): Promise<string> {
-  const limit = Number(args.limit ?? 5);
+const NOISE_PATTERNS = ['pre-push gate', 'Claude response complete', 'Session started', 'Auto-logged'];
 
-  // Read recent Flux logs from team-workflow (written by Claude Code sessions)
+export async function getSessionContext(args: Record<string, unknown>): Promise<string> {
+  const perSession = Number(args.limit ?? 10);
+
   const snap = await db.collection('team-workflow')
     .orderBy('timestamp', 'desc')
-    .limit(limit * 3)
+    .limit(150)
     .get();
 
   if (snap.empty) return 'ยังไม่มี session log จากคอมค่ะ';
 
-  const entries = snap.docs.map(d => d.data());
+  // Filter noise, group by session date
+  const bySession: Record<string, FirebaseFirestore.DocumentData[]> = {};
+  for (const doc of snap.docs) {
+    const e = doc.data();
+    const task = String(e['task'] ?? e['action'] ?? '');
+    if (NOISE_PATTERNS.some(p => task.includes(p))) continue;
 
-  // Group by session date
-  const bySession: Record<string, typeof entries> = {};
-  for (const e of entries) {
     const key = e['session'] ?? 'unknown';
     if (!bySession[key]) bySession[key] = [];
     bySession[key].push(e);
   }
 
   const sessions = Object.keys(bySession).sort().reverse().slice(0, 3);
+  if (sessions.length === 0) return 'ไม่มี session log ที่น่าสนใจค่ะ';
+
   const lines: string[] = ['*Session log จากคอม (ล่าสุด)*\n'];
 
   for (const session of sessions) {
     lines.push(`*📅 ${session}*`);
-    for (const e of bySession[session].slice(0, limit)) {
-      const status = e['status'] ?? '';
-      const member = e['member'] ?? e['actor'] ?? '';
-      const task = e['task'] ?? e['action'] ?? '';
-      const emoji = status === 'DONE' ? '✅' : status === 'BLOCKED' ? '🚫' : '⏳';
+    for (const e of bySession[session].slice(0, perSession)) {
+      const status = String(e['status'] ?? '');
+      const member = String(e['member'] ?? e['actor'] ?? '');
+      const task = String(e['task'] ?? e['action'] ?? '');
+      const emoji = status === 'DONE' ? '✅' : status === 'BLOCKED' ? '🚫' : status === 'HANDOFF' ? '🔀' : '⏳';
       lines.push(`  ${emoji} *${member}*: ${task}`);
     }
     lines.push('');
