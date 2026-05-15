@@ -47,24 +47,38 @@ export async function handleConnect(ctx) {
         return;
     }
     if (await isConnected()) {
-        await ctx.reply('เชื่อม Google แล้วค่ะ ✅\nใช้ Gmail และ Calendar ได้เลย\n\nถ้าอยากเชื่อมใหม่ ให้คลิก link ด้านล่างค่ะ:\n' + getAuthUrl());
+        await ctx.reply('เชื่อม Google แล้วค่ะ ✅\nใช้ Gmail และ Calendar ได้เลย');
         return;
     }
     const url = getAuthUrl();
     await ctx.reply('*เชื่อม Google Account*\n\n' +
-        '1. คลิก link ด้านล่าง\n' +
-        '2. อนุมัติ Google Account\n' +
-        '3. Browser จะเด้งไป localhost (error ปกติ)\n' +
-        '4. *copy code จาก URL bar* — ส่วนที่อยู่หลัง `?code=` จนถึง `&scope`\n' +
-        '5. ส่ง `/code <code>` กลับมาที่นี่\n\n' +
-        url, { parse_mode: 'Markdown' });
+        '1. กดปุ่มด้านล่าง → อนุมัติ Google Account\n' +
+        '2. Browser เด้งไป localhost \\(error ปกติ\\)\n' +
+        '3. Copy URL ทั้งหมดจาก address bar\n' +
+        '4. ส่งกลับมาที่นี่ว่า `/code <URL นั้น>`', {
+        parse_mode: 'MarkdownV2',
+        reply_markup: {
+            inline_keyboard: [[{ text: '🔗 เชื่อม Google Account', url }]],
+        },
+    });
 }
 export async function handleCode(ctx) {
     const text = ctx.message?.text ?? '';
-    const code = text.replace('/code', '').trim();
-    if (!code) {
-        await ctx.reply('กรุณาส่ง code ด้วยนะคะ เช่น `/code 4/0AX4...`', { parse_mode: 'Markdown' });
+    const raw = text.replace('/code', '').trim();
+    if (!raw) {
+        await ctx.reply('กรุณาส่ง code หรือ URL ด้วยนะคะ เช่น `/code http://localhost/?code=4/0AX4...`', { parse_mode: 'Markdown' });
         return;
+    }
+    // Accept either a full redirect URL or a bare code
+    let code = raw;
+    if (raw.startsWith('http')) {
+        try {
+            const parsed = new URL(raw);
+            code = parsed.searchParams.get('code') ?? raw;
+        }
+        catch {
+            // keep raw
+        }
     }
     try {
         if (ctx.chat)
