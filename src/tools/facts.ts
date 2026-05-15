@@ -33,15 +33,20 @@ export async function recallFacts(args: Record<string, unknown>, userId: string)
 }
 
 export async function loadFactsForPrompt(userId: string): Promise<string> {
-  const snap = await db.collection('vera-facts')
-    .where('userId', '==', userId)
-    .orderBy('createdAt', 'desc')
-    .limit(15)
-    .get();
+  let snap: any;
+  try {
+    snap = await db.collection('vera-facts')
+      .where('userId', '==', userId)
+      .orderBy('createdAt', 'desc')
+      .limit(15)
+      .get();
+  } catch {
+    return ''; // index still building or no data — skip gracefully
+  }
 
   if (snap.empty) return '';
 
-  const lines = snap.docs.map(d => {
+  const lines = snap.docs.map((d: any) => {
     const data = d.data();
     return `- [${data['category'] ?? 'general'}] ${data['fact']}`;
   });

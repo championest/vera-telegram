@@ -28,14 +28,20 @@ export async function recallFacts(args, userId) {
     return `*Facts ที่บันทึกไว้*\n\n${lines.join('\n')}`;
 }
 export async function loadFactsForPrompt(userId) {
-    const snap = await db.collection('vera-facts')
-        .where('userId', '==', userId)
-        .orderBy('createdAt', 'desc')
-        .limit(15)
-        .get();
+    let snap;
+    try {
+        snap = await db.collection('vera-facts')
+            .where('userId', '==', userId)
+            .orderBy('createdAt', 'desc')
+            .limit(15)
+            .get();
+    }
+    catch {
+        return ''; // index still building or no data — skip gracefully
+    }
     if (snap.empty)
         return '';
-    const lines = snap.docs.map(d => {
+    const lines = snap.docs.map((d) => {
         const data = d.data();
         return `- [${data['category'] ?? 'general'}] ${data['fact']}`;
     });
