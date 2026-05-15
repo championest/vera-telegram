@@ -1,7 +1,7 @@
 import { Bot, GrammyError, HttpError } from 'grammy';
 import { config } from './config.js';
 import { handleUserMessage, handleMediaMessage } from './handlers/message.js';
-import { handleStart, handleReminders, handleIdeas, handleTasks, handleHelp, handleConnect, handleCode, handleStatus } from './handlers/command.js';
+import { handleStart, handleReminders, handleIdeas, handleTasks, handleHelp, handleConnect, handleCode, handleStatus, handleMenu } from './handlers/command.js';
 import { handleReminderCallback } from './scheduler/reminders.js';
 export function createBot() {
     const bot = new Bot(config.TELEGRAM_BOT_TOKEN);
@@ -22,6 +22,7 @@ export function createBot() {
     bot.command('code', handleCode);
     bot.command('help', handleHelp);
     bot.command('status', handleStatus);
+    bot.command('menu', handleMenu);
     bot.on('callback_query:data', async (ctx) => {
         const data = ctx.callbackQuery.data ?? '';
         if (data.startsWith('rm:')) {
@@ -83,9 +84,18 @@ export function createBot() {
         const buf = await downloadTelegramFile(ctx, doc.file_id);
         await sendMediaReply(ctx, buf, mime, ctx.message.caption ?? null);
     });
+    // Keyboard shortcut → natural language mapping
+    const KEYBOARD_MAP = {
+        '📅 ตาราง': 'ดู calendar วันนี้ให้หน่อยค่ะ',
+        '📧 เมล': 'ดูอีเมลที่ยังไม่ได้อ่านให้หน่อยค่ะ',
+        '⏰ Reminder': 'ดู reminder ที่ตั้งไว้ทั้งหมดให้หน่อยค่ะ',
+        '💼 งานทีม': 'สรุป task ของทีมล่าสุดให้หน่อยค่ะ',
+    };
     bot.on('message:text', async (ctx) => {
         const userId = String(ctx.from.id);
-        const text = ctx.message.text;
+        const rawText = ctx.message.text;
+        // If it's a keyboard shortcut, use mapped query; otherwise pass through
+        const text = KEYBOARD_MAP[rawText] ?? rawText;
         await ctx.api.sendChatAction(ctx.chat.id, 'typing');
         try {
             const reply = await handleUserMessage(userId, text);

@@ -282,6 +282,31 @@ export const toolDefinitions: FunctionDeclaration[] = [
       required: [],
     },
   },
+  // ─── Gmail draft ───
+  {
+    name: 'gmail_create_draft',
+    description: 'Create a Gmail draft WITHOUT sending. Use this when Champ wants to prepare an email to review before sending.',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        to: { type: 'STRING' as any, description: 'Recipient email address (optional for drafts)' },
+        subject: { type: 'STRING' as any, description: 'Email subject' },
+        body: { type: 'STRING' as any, description: 'Plain text email body' },
+      },
+      required: ['subject', 'body'],
+    },
+  },
+  {
+    name: 'gmail_list_drafts',
+    description: 'List saved Gmail drafts.',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        max_results: { type: 'NUMBER' as any, description: 'Max drafts to return. Default 5.' },
+      },
+      required: [],
+    },
+  },
   // ─── Web search ───
   {
     name: 'web_search',

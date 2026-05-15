@@ -13,6 +13,7 @@ import { calendarUpdateEvent, calendarDeleteEvent } from './calendar-update.js';
 import { getSessionContext, writeNoteToClaude, readAceNotes } from './session-bridge.js';
 import { saveFact, recallFacts } from './facts.js';
 import { webSearch, fetchUrl } from './web-search.js';
+import { gmailCreateDraft, gmailListDrafts } from './gmail-draft.js';
 export async function executeToolCall(name, args, userId) {
     try {
         switch (name) {
@@ -38,6 +39,8 @@ export async function executeToolCall(name, args, userId) {
             case 'read_ace_notes': return await readAceNotes(args);
             case 'save_fact': return await saveFact(args, userId);
             case 'recall_facts': return await recallFacts(args, userId);
+            case 'gmail_create_draft': return await gmailCreateDraft(args);
+            case 'gmail_list_drafts': return await gmailListDrafts(args);
             case 'web_search': return await webSearch(args);
             case 'fetch_url': return await fetchUrl(args);
             default:

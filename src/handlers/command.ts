@@ -4,16 +4,24 @@ import { db } from '../firebase.js';
 import { isGoogleConfigured, getAuthUrl, isConnected } from '../services/google-auth.js';
 import { config } from '../config.js';
 
+export const QUICK_KEYBOARD = {
+  keyboard: [
+    [{ text: '📅 ตาราง' }, { text: '📧 เมล' }, { text: '⏰ Reminder' }],
+    [{ text: '🔍 ค้นหา...' }, { text: '📝 บันทึกไอเดีย...' }, { text: '💼 งานทีม' }],
+  ],
+  resize_keyboard: true,
+  persistent: true,
+};
+
 export async function handleStart(ctx: Context) {
   await ctx.reply(
-    '*Vera ที่นี่ค่ะ* — เลขาฯ ส่วนตัวของคุณ Champ\n\n' +
-    'พิมพ์อะไรก็ได้เลยค่ะ หรือใช้คำสั่ง:\n' +
-    '/reminders — ดู reminder ที่ตั้งไว้\n' +
-    '/ideas — ดูไอเดียที่บันทึกไว้\n' +
-    '/tasks — ดู task ทีมวันนี้\n' +
-    '/help — วิธีใช้งาน',
-    { parse_mode: 'Markdown' }
+    '*Vera ที่นี่ค่ะ* — เลขาฯ ส่วนตัวของคุณ Champ\n\nพิมพ์อะไรก็ได้เลยค่ะ หรือกดปุ่มด้านล่าง',
+    { parse_mode: 'Markdown', reply_markup: QUICK_KEYBOARD }
   );
+}
+
+export async function handleMenu(ctx: Context) {
+  await ctx.reply('เมนูหลักค่ะ 👇', { reply_markup: QUICK_KEYBOARD });
 }
 
 export async function handleReminders(ctx: Context) {

@@ -7,6 +7,23 @@ import { google } from 'googleapis';
 const CHAT_ID = parseInt(config.TELEGRAM_OWNER_CHAT_ID, 10);
 async function buildMorningBrief() {
     const lines = ['☀️ *Good morning คุณ Champ!*\n'];
+    // Unread notes from claude-notes (left from Vera or during Claude Code sessions)
+    try {
+        const notesSnap = await db.collection('claude-notes')
+            .where('read', '==', false)
+            .orderBy('createdAt', 'desc')
+            .limit(5)
+            .get();
+        if (!notesSnap.empty) {
+            lines.push('*📬 Notes ที่ยังไม่ได้อ่าน*');
+            notesSnap.docs.forEach(d => {
+                const n = d.data();
+                lines.push(`• [${n['topic'] ?? 'note'}] ${n['note']}`);
+            });
+            lines.push('');
+        }
+    }
+    catch { /* index may not exist yet */ }
     // Pending reminders today
     const now = new Date();
     const endOfDay = new Date(now);
@@ -79,8 +96,8 @@ async function buildMorningBrief() {
     return lines.join('\n');
 }
 export function startMorningBriefScheduler(bot) {
-    // 8:00 AM Bangkok = 01:00 UTC
-    cron.schedule('0 1 * * *', async () => {
+    // 7:00 AM Bangkok = 00:00 UTC
+    cron.schedule('0 0 * * *', async () => {
         try {
             const brief = await buildMorningBrief();
             await bot.api.sendMessage(CHAT_ID, brief, { parse_mode: 'Markdown' });
@@ -89,5 +106,5 @@ export function startMorningBriefScheduler(bot) {
             console.error('[Morning brief error]', err);
         }
     });
-    console.log('Morning brief scheduler started (08:00 BKK daily)');
+    console.log('Morning brief scheduler started (07:00 BKK daily)');
 }
