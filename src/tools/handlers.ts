@@ -14,6 +14,7 @@ import { getSessionContext, writeNoteToClaude, readAceNotes } from './session-br
 import { saveFact, recallFacts } from './facts.js';
 import { webSearch, fetchUrl } from './web-search.js';
 import { gmailCreateDraft, gmailListDrafts } from './gmail-draft.js';
+import { saveResearch, listResearch, getResearch } from './save-research.js';
 
 export async function executeToolCall(
   name: string,
@@ -44,6 +45,9 @@ export async function executeToolCall(
       case 'read_ace_notes':         return await readAceNotes(args);
       case 'save_fact':              return await saveFact(args, userId);
       case 'recall_facts':           return await recallFacts(args, userId);
+      case 'save_research':          return await saveResearch(args);
+      case 'list_research':          return await listResearch(args);
+      case 'get_research':           return await getResearch(args);
       case 'gmail_create_draft':     return await gmailCreateDraft(args);
       case 'gmail_list_drafts':      return await gmailListDrafts(args);
       case 'web_search':             return await webSearch(args);

@@ -279,6 +279,69 @@ export const toolDefinitions = [
             required: [],
         },
     },
+    // ─── Research ───
+    {
+        name: 'save_research',
+        description: 'Save a research summary with findings and confidence labels to Firestore vera-research collection. Call this AFTER completing all web searches and synthesizing the results.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                topic: { type: 'STRING', description: 'Research topic (Thai or English)' },
+                summary: { type: 'STRING', description: '2-3 paragraph synthesis of all findings in Thai' },
+                findings: {
+                    type: 'ARRAY',
+                    items: {
+                        type: 'OBJECT',
+                        properties: {
+                            point: { type: 'STRING', description: 'The finding or fact' },
+                            confidence: { type: 'STRING', enum: ['verified', 'uncertain', 'conflicting'], description: 'Confidence level based on source agreement' },
+                            source_url: { type: 'STRING', description: 'URL of the source supporting this finding (optional)' },
+                        },
+                    },
+                    description: 'Key findings with confidence labels',
+                },
+                sources: {
+                    type: 'ARRAY',
+                    items: {
+                        type: 'OBJECT',
+                        properties: {
+                            title: { type: 'STRING' },
+                            url: { type: 'STRING' },
+                        },
+                    },
+                    description: 'All sources consulted',
+                },
+                tags: {
+                    type: 'ARRAY',
+                    items: { type: 'STRING' },
+                    description: 'Tags for categorization e.g. ["business", "tech", "education"]',
+                },
+            },
+            required: ['topic', 'summary', 'findings'],
+        },
+    },
+    {
+        name: 'list_research',
+        description: 'List saved research topics from vera-research collection.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                limit: { type: 'NUMBER', description: 'Max results. Default 10.' },
+            },
+            required: [],
+        },
+    },
+    {
+        name: 'get_research',
+        description: 'Retrieve full details of a specific saved research by ID.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                id: { type: 'STRING', description: 'Firestore document ID of the research' },
+            },
+            required: ['id'],
+        },
+    },
     // ─── Gmail draft ───
     {
         name: 'gmail_create_draft',
