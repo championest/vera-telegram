@@ -11,10 +11,13 @@ export async function handleUserMessage(userId: string, userText: string): Promi
   const history = await loadHistory(userId);
 
   // Convert history to Gemini Content format (exclude the last user message — sent via sendMessage)
-  const geminiHistory: Content[] = history.slice(0, -1).map(m => ({
+  // Gemini requires history to start with 'user' role — drop leading model messages if history is corrupted
+  const rawHistory = history.slice(0, -1).map(m => ({
     role: m.role === 'user' ? 'user' : 'model',
     parts: [{ text: m.content }],
   }));
+  const firstUserIdx = rawHistory.findIndex(m => m.role === 'user');
+  const geminiHistory: Content[] = firstUserIdx > 0 ? rawHistory.slice(firstUserIdx) : rawHistory;
 
   const model = genAI.getGenerativeModel({
     model: MODEL_NAME,

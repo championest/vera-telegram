@@ -53,10 +53,10 @@ export async function handleConnect(ctx) {
     const url = getAuthUrl();
     await ctx.reply('*เชื่อม Google Account*\n\n' +
         '1. กดปุ่มด้านล่าง → อนุมัติ Google Account\n' +
-        '2. Browser เด้งไป localhost \\(error ปกติ\\)\n' +
+        '2. Browser เด้งไป localhost (error ปกติ)\n' +
         '3. Copy URL ทั้งหมดจาก address bar\n' +
         '4. ส่งกลับมาที่นี่ว่า `/code <URL นั้น>`', {
-        parse_mode: 'MarkdownV2',
+        parse_mode: 'Markdown',
         reply_markup: {
             inline_keyboard: [[{ text: '🔗 เชื่อม Google Account', url }]],
         },
