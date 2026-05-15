@@ -3,6 +3,8 @@ import { config } from './config.js';
 import { handleUserMessage, handleMediaMessage } from './handlers/message.js';
 import { handleStart, handleReminders, handleIdeas, handleTasks, handleHelp, handleConnect, handleCode, handleStatus, handleMenu } from './handlers/command.js';
 import { handleReminderCallback } from './scheduler/reminders.js';
+import { sendMorningBrief } from './scheduler/morning-brief.js';
+import { db } from './firebase.js';
 import { calendarListEvents } from './tools/calendar-list.js';
 import { gmailListUnread } from './tools/gmail-read.js';
 import { listReminders } from './tools/list-reminders.js';
@@ -30,13 +32,64 @@ export function createBot(): Bot {
   bot.command('help', handleHelp);
   bot.command('status', handleStatus);
   bot.command('menu', handleMenu);
+  bot.command('brief', async (ctx) => {
+    await ctx.api.sendChatAction(ctx.chat!.id, 'typing');
+    try { await sendMorningBrief(bot); }
+    catch (err: any) { await ctx.reply(`เกิดข้อผิดพลาด: ${err.message}`); }
+  });
 
   bot.on('callback_query:data', async (ctx) => {
     const data = ctx.callbackQuery.data ?? '';
+
     if (data.startsWith('rm:')) {
       const [, action, docId] = data.split(':');
       await handleReminderCallback(bot, action, docId, ctx.callbackQuery.id);
       try { await ctx.editMessageReplyMarkup(); } catch { /* message too old */ }
+
+    } else if (data === 'brief:plan_day') {
+      await ctx.answerCallbackQuery({ text: 'กำลังวางแผน...' });
+      try { await ctx.editMessageReplyMarkup(); } catch { /* ok */ }
+      await ctx.api.sendChatAction(ctx.chat!.id, 'typing');
+      try {
+        // Build context from Firestore before calling Gemini
+        const [tasksSnap, ideasSnap] = await Promise.all([
+          db.collection('team-workflow')
+            .where('status', 'in', ['IN_PROGRESS', 'TODO'])
+            .orderBy('timestamp', 'desc')
+            .limit(10)
+            .get(),
+          db.collection('vera-ideas')
+            .orderBy('createdAt', 'desc')
+            .limit(5)
+            .get(),
+        ]);
+
+        const tasks = tasksSnap.docs.map(d => `[${d.data()['status']}] ${d.data()['member']}: ${d.data()['task']}`).join('\n');
+        const ideas = ideasSnap.docs.map(d => `• ${d.data()['title']}`).join('\n');
+
+        const planQuery = `วันนี้ไม่มีนัด ช่วยวางแผนวันนี้ให้หน่อยค่ะ
+
+Tasks ที่ยังค้างอยู่:
+${tasks || '(ไม่มี)'}
+
+Ideas ที่บันทึกไว้:
+${ideas || '(ไม่มี)'}
+
+แนะนำว่าวันนี้ควรโฟกัสเรื่องอะไรก่อน แล้วช่วยสร้าง schedule คร่าวๆ ได้เลยค่ะ`;
+
+        const userId = String(ctx.from?.id);
+        const reply = await handleUserMessage(userId, planQuery);
+        try { await ctx.reply(reply, { parse_mode: 'Markdown' }); }
+        catch { await ctx.reply(reply); }
+      } catch (err: any) {
+        await ctx.reply(`เกิดข้อผิดพลาดค่ะ: ${err.message ?? 'unknown'}`);
+      }
+
+    } else if (data === 'brief:free_day') {
+      await ctx.answerCallbackQuery({ text: 'โอเค! วันพักผ่อน 😊' });
+      try { await ctx.editMessageReplyMarkup(); } catch { /* ok */ }
+      await ctx.reply('โอเคค่ะ วันนี้ไม่มีนัด — พักผ่อนได้เลย หรือจะให้ Vera ช่วยอะไรก็พิมพ์มาได้เลยนะคะ 😊');
+
     } else {
       await ctx.answerCallbackQuery();
     }
