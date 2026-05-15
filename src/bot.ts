@@ -1,7 +1,8 @@
 import { Bot, GrammyError, HttpError } from 'grammy';
 import { config } from './config.js';
 import { handleUserMessage } from './handlers/message.js';
-import { handleStart, handleReminders, handleIdeas, handleTasks, handleHelp, handleConnect, handleCode } from './handlers/command.js';
+import { handleStart, handleReminders, handleIdeas, handleTasks, handleHelp, handleConnect, handleCode, handleStatus } from './handlers/command.js';
+import { handleReminderCallback } from './scheduler/reminders.js';
 
 export function createBot(): Bot {
   const bot = new Bot(config.TELEGRAM_BOT_TOKEN);
@@ -23,6 +24,18 @@ export function createBot(): Bot {
   bot.command('connect', handleConnect);
   bot.command('code', handleCode);
   bot.command('help', handleHelp);
+  bot.command('status', handleStatus);
+
+  bot.on('callback_query:data', async (ctx) => {
+    const data = ctx.callbackQuery.data ?? '';
+    if (data.startsWith('rm:')) {
+      const [, action, docId] = data.split(':');
+      await handleReminderCallback(bot, action, docId, ctx.callbackQuery.id);
+      try { await ctx.editMessageReplyMarkup(); } catch { /* message too old */ }
+    } else {
+      await ctx.answerCallbackQuery();
+    }
+  });
 
   bot.on('message:text', async (ctx) => {
     const userId = String(ctx.from.id);

@@ -38,6 +38,27 @@ export async function getSessionContext(args) {
     }
     return lines.join('\n');
 }
+export async function readAceNotes(args) {
+    const limit = Number(args.limit ?? 10);
+    const snap = await db.collection('claude-notes')
+        .orderBy('createdAt', 'desc')
+        .limit(limit * 2)
+        .get();
+    if (snap.empty)
+        return 'ไม่มีโน้ตใน claude-notes ค่ะ';
+    const notes = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(n => n['source'] !== 'vera-telegram')
+        .slice(0, limit);
+    if (notes.length === 0)
+        return 'ไม่มีโน้ตจากนอก Vera ค่ะ';
+    const lines = notes.map(n => {
+        const status = n['read'] ? '✅ อ่านแล้ว' : '📬 ยังไม่ได้อ่าน';
+        const topic = n['topic'] ? `[${n['topic']}]` : '';
+        return `${status} ${topic} ${n['note']}`;
+    });
+    return `*โน้ตสำหรับ Ace*\n\n${lines.join('\n\n')}`;
+}
 export async function writeNoteToClaude(args) {
     const note = String(args.note ?? '');
     const topic = String(args.topic ?? 'general');

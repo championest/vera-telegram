@@ -4,10 +4,11 @@ import { db } from '../firebase.js';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { config } from '../config.js';
 
+const CHAT_ID = parseInt(config.TELEGRAM_OWNER_CHAT_ID, 10);
+
 export function startReminderScheduler(bot: Bot): void {
   cron.schedule('* * * * *', async () => {
     const now = new Date();
-
     try {
       const snap = await db.collection('vera-reminders')
         .where('status', '==', 'pending')
@@ -15,25 +16,41 @@ export function startReminderScheduler(bot: Bot): void {
         .get();
 
       for (const doc of snap.docs) {
+        // Dedup: claim the doc atomically before sending
+        await doc.ref.update({ status: 'sending' });
+
         const reminder = doc.data();
-        const chatId = parseInt(config.TELEGRAM_OWNER_CHAT_ID, 10);
+        try {
+          await bot.api.sendMessage(
+            CHAT_ID,
+            `⏰ *Reminder*\n${reminder['message']}`,
+            {
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [[
+                  { text: '⏰ Snooze 1h', callback_data: `rm:snooze:${doc.id}` },
+                  { text: '✅ Done',       callback_data: `rm:done:${doc.id}` },
+                  { text: '🗑 Delete',    callback_data: `rm:delete:${doc.id}` },
+                ]],
+              },
+            }
+          );
 
-        await bot.api.sendMessage(
-          chatId,
-          `⏰ *Reminder*\n${reminder['message']}`,
-          { parse_mode: 'Markdown' }
-        );
-
-        if (reminder['repeat'] === 'daily') {
-          const next = (reminder['remindAt'] as Timestamp).toDate();
-          next.setDate(next.getDate() + 1);
-          await doc.ref.update({ remindAt: Timestamp.fromDate(next), lastSentAt: FieldValue.serverTimestamp() });
-        } else if (reminder['repeat'] === 'weekly') {
-          const next = (reminder['remindAt'] as Timestamp).toDate();
-          next.setDate(next.getDate() + 7);
-          await doc.ref.update({ remindAt: Timestamp.fromDate(next), lastSentAt: FieldValue.serverTimestamp() });
-        } else {
-          await doc.ref.update({ status: 'sent', sentAt: FieldValue.serverTimestamp() });
+          if (reminder['repeat'] === 'daily') {
+            const next = (reminder['remindAt'] as Timestamp).toDate();
+            next.setDate(next.getDate() + 1);
+            await doc.ref.update({ status: 'pending', remindAt: Timestamp.fromDate(next), lastSentAt: FieldValue.serverTimestamp() });
+          } else if (reminder['repeat'] === 'weekly') {
+            const next = (reminder['remindAt'] as Timestamp).toDate();
+            next.setDate(next.getDate() + 7);
+            await doc.ref.update({ status: 'pending', remindAt: Timestamp.fromDate(next), lastSentAt: FieldValue.serverTimestamp() });
+          } else {
+            await doc.ref.update({ status: 'sent', sentAt: FieldValue.serverTimestamp() });
+          }
+        } catch (sendErr) {
+          console.error('[Reminder send error]', sendErr);
+          // Revert status so it retries next minute
+          await doc.ref.update({ status: 'pending' });
         }
       }
     } catch (err) {
@@ -42,4 +59,21 @@ export function startReminderScheduler(bot: Bot): void {
   });
 
   console.log('Reminder scheduler started (every 1 minute)');
+}
+
+export async function handleReminderCallback(bot: Bot, action: string, docId: string, callbackQueryId: string): Promise<void> {
+  const ref = db.collection('vera-reminders').doc(docId);
+  try {
+    if (action === 'done' || action === 'delete') {
+      await ref.update({ status: 'cancelled', cancelledAt: FieldValue.serverTimestamp() });
+      await bot.api.answerCallbackQuery(callbackQueryId, { text: action === 'done' ? '✅ Done!' : '🗑 Deleted' });
+    } else if (action === 'snooze') {
+      const snoozeUntil = new Date(Date.now() + 60 * 60 * 1000);
+      await ref.update({ status: 'pending', remindAt: Timestamp.fromDate(snoozeUntil) });
+      await bot.api.answerCallbackQuery(callbackQueryId, { text: '⏰ Snoozed 1 hour' });
+    }
+  } catch (err) {
+    console.error('[Reminder callback error]', err);
+    await bot.api.answerCallbackQuery(callbackQueryId, { text: 'เกิดข้อผิดพลาดค่ะ' });
+  }
 }

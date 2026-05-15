@@ -98,3 +98,33 @@ export async function gmailRead(args) {
         `\n*เนื้อหา:*\n${body || '(ไม่มีเนื้อหา)'}`,
     ].join('\n');
 }
+export async function gmailMarkRead(args) {
+    if (!await isConnected())
+        return NOT_CONNECTED;
+    const auth = await getAuthedClient();
+    if (!auth)
+        return NOT_CONNECTED;
+    const gmail = google.gmail({ version: 'v1', auth });
+    const messageId = String(args.message_id ?? '');
+    if (!messageId)
+        return 'กรุณาระบุ message_id ค่ะ';
+    await gmail.users.messages.modify({
+        userId: 'me',
+        id: messageId,
+        requestBody: { removeLabelIds: ['UNREAD'] },
+    });
+    return `Mark as read สำเร็จค่ะ ✅ (ID: ${messageId})`;
+}
+export async function gmailTrash(args) {
+    if (!await isConnected())
+        return NOT_CONNECTED;
+    const auth = await getAuthedClient();
+    if (!auth)
+        return NOT_CONNECTED;
+    const gmail = google.gmail({ version: 'v1', auth });
+    const messageId = String(args.message_id ?? '');
+    if (!messageId)
+        return 'กรุณาระบุ message_id ค่ะ';
+    await gmail.users.messages.trash({ userId: 'me', id: messageId });
+    return `ย้ายไป Trash สำเร็จค่ะ 🗑 (ID: ${messageId})`;
+}

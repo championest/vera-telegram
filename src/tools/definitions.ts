@@ -156,34 +156,6 @@ export const toolDefinitions: FunctionDeclaration[] = [
     },
   },
   {
-    name: 'log_team_task',
-    description: 'Log a task to the Firestore team-workflow collection, assigning it to a team member.',
-    parameters: {
-      type: 'OBJECT' as any,
-      properties: {
-        member: {
-          type: 'STRING' as any,
-          enum: ['ace', 'kai', 'nova', 'sam', 'jade', 'iris', 'pixel', 'bolt', 'rena', 'max', 'sage', 'flux', 'vera'],
-          description: 'The team member to assign the task to',
-        },
-        task: { type: 'STRING' as any, description: 'Description of the task' },
-        status: {
-          type: 'STRING' as any,
-          enum: ['TODO', 'IN_PROGRESS', 'DONE', 'BLOCKED'],
-          description: 'Initial status. Default: TODO',
-        },
-        notes: { type: 'STRING' as any, description: 'Optional context notes' },
-        handoff_to: { type: 'STRING' as any, description: 'Optional next team member for handoff' },
-        priority: {
-          type: 'STRING' as any,
-          enum: ['low', 'normal', 'high', 'urgent'],
-          description: 'Task priority. Default: normal',
-        },
-      },
-      required: ['member', 'task'],
-    },
-  },
-  {
     name: 'search_memory',
     description: 'Search past conversation history stored for this user in Firestore.',
     parameters: {
@@ -196,6 +168,95 @@ export const toolDefinitions: FunctionDeclaration[] = [
         },
       },
       required: ['query'],
+    },
+  },
+  // ─── Gmail actions ───
+  {
+    name: 'gmail_mark_read',
+    description: 'Mark a specific Gmail message as read.',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        message_id: { type: 'STRING' as any, description: 'Gmail message ID to mark as read' },
+      },
+      required: ['message_id'],
+    },
+  },
+  {
+    name: 'gmail_trash',
+    description: 'Move a Gmail message to Trash.',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        message_id: { type: 'STRING' as any, description: 'Gmail message ID to move to trash' },
+      },
+      required: ['message_id'],
+    },
+  },
+  // ─── Reminder management ───
+  {
+    name: 'cancel_reminder',
+    description: 'Cancel (delete) an active reminder by ID.',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        reminder_id: { type: 'STRING' as any, description: 'Firestore document ID of the reminder to cancel' },
+      },
+      required: ['reminder_id'],
+    },
+  },
+  {
+    name: 'snooze_reminder',
+    description: 'Snooze a reminder — delay it by a specified number of minutes.',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        reminder_id: { type: 'STRING' as any, description: 'Firestore document ID of the reminder to snooze' },
+        minutes: { type: 'NUMBER' as any, description: 'How many minutes to snooze. Default 60.' },
+      },
+      required: ['reminder_id'],
+    },
+  },
+  // ─── Session bridge ───
+  {
+    name: 'read_ace_notes',
+    description: 'Read notes left in claude-notes collection — notes from Champ or Claude Code for Ace to read.',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        limit: { type: 'NUMBER' as any, description: 'Max notes to return. Default 10.' },
+      },
+      required: [],
+    },
+  },
+  // ─── Task update ───
+  {
+    name: 'log_team_task',
+    description: 'Dispatch a new task to a team member, OR update an existing task status by providing task_id.',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        task_id: { type: 'STRING' as any, description: 'Optional: Firestore doc ID of existing task to update (skip member/task fields if updating)' },
+        member: {
+          type: 'STRING' as any,
+          enum: ['ace', 'kai', 'nova', 'sam', 'jade', 'iris', 'pixel', 'bolt', 'rena', 'max', 'sage', 'flux', 'vera'],
+          description: 'Team member to assign task to (required for new tasks)',
+        },
+        task: { type: 'STRING' as any, description: 'Task description (required for new tasks)' },
+        status: {
+          type: 'STRING' as any,
+          enum: ['TODO', 'IN_PROGRESS', 'DONE', 'BLOCKED'],
+          description: 'Task status',
+        },
+        notes: { type: 'STRING' as any, description: 'Optional context notes' },
+        handoff_to: { type: 'STRING' as any, description: 'Optional next team member for handoff' },
+        priority: {
+          type: 'STRING' as any,
+          enum: ['low', 'normal', 'high', 'urgent'],
+          description: 'Task priority. Default: normal',
+        },
+      },
+      required: [],
     },
   },
 ];

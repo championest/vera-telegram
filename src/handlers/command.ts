@@ -2,6 +2,7 @@ import type { Context } from 'grammy';
 import { listReminders } from '../tools/list-reminders.js';
 import { db } from '../firebase.js';
 import { isGoogleConfigured, getAuthUrl, isConnected } from '../services/google-auth.js';
+import { config } from '../config.js';
 
 export async function handleStart(ctx: Context) {
   await ctx.reply(
@@ -105,6 +106,33 @@ export async function handleCode(ctx: Context) {
     console.error('[handleCode error]', err);
     await ctx.reply('เชื่อมไม่สำเร็จค่ะ — code อาจหมดอายุหรือไม่ถูกต้อง\nลอง /connect ใหม่อีกครั้งนะคะ');
   }
+}
+
+export async function handleStatus(ctx: Context) {
+  const [googleConnected, reminderSnap, memorySnap] = await Promise.all([
+    isConnected(),
+    db.collection('vera-reminders').where('status', '==', 'pending').count().get(),
+    db.collection('vera-memory').where('userId', '==', String(ctx.from?.id)).count().get(),
+  ]);
+
+  const lastSessionSnap = await db.collection('team-workflow')
+    .orderBy('timestamp', 'desc')
+    .limit(1)
+    .get();
+
+  const lastSession = lastSessionSnap.empty
+    ? 'ไม่มีข้อมูล'
+    : lastSessionSnap.docs[0].data()['session'] ?? 'ไม่มีข้อมูล';
+
+  await ctx.reply(
+    '*Vera Status*\n\n' +
+    `Google: ${googleConnected ? '✅ Connected' : '❌ Not connected — /connect'}\n` +
+    `Reminders: ${reminderSnap.data().count} pending\n` +
+    `Memory: ${memorySnap.data().count} messages\n` +
+    `Last session: ${lastSession}\n` +
+    `Max memory: ${config.MAX_MEMORY_MESSAGES} messages`,
+    { parse_mode: 'Markdown' }
+  );
 }
 
 export async function handleHelp(ctx: Context) {
