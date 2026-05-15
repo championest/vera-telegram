@@ -1,6 +1,6 @@
 import { Bot, GrammyError, HttpError } from 'grammy';
 import { config } from './config.js';
-import { handleUserMessage } from './handlers/message.js';
+import { handleUserMessage, handleMediaMessage } from './handlers/message.js';
 import { handleStart, handleReminders, handleIdeas, handleTasks, handleHelp, handleConnect, handleCode, handleStatus } from './handlers/command.js';
 import { handleReminderCallback } from './scheduler/reminders.js';
 export function createBot() {
@@ -35,6 +35,53 @@ export function createBot() {
         else {
             await ctx.answerCallbackQuery();
         }
+    });
+    async function sendMediaReply(ctx, buffer, mimeType, caption) {
+        const userId = String(ctx.from.id);
+        await ctx.api.sendChatAction(ctx.chat.id, 'typing');
+        try {
+            const reply = await handleMediaMessage(userId, buffer, mimeType, caption);
+            try {
+                await ctx.reply(reply, { parse_mode: 'Markdown' });
+            }
+            catch {
+                await ctx.reply(reply);
+            }
+        }
+        catch (err) {
+            console.error('[Media handler error]', err);
+            await ctx.reply('ขออภัยค่ะ ไม่สามารถประมวลผลไฟล์ได้');
+        }
+    }
+    async function downloadTelegramFile(ctx, fileId) {
+        const file = await ctx.api.getFile(fileId);
+        const url = `https://api.telegram.org/file/bot${config.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
+        const res = await fetch(url);
+        return Buffer.from(await res.arrayBuffer());
+    }
+    bot.on('message:voice', async (ctx) => {
+        const buf = await downloadTelegramFile(ctx, ctx.message.voice.file_id);
+        await sendMediaReply(ctx, buf, 'audio/ogg', null);
+    });
+    bot.on('message:audio', async (ctx) => {
+        const buf = await downloadTelegramFile(ctx, ctx.message.audio.file_id);
+        await sendMediaReply(ctx, buf, ctx.message.audio.mime_type ?? 'audio/mpeg', null);
+    });
+    bot.on('message:photo', async (ctx) => {
+        const photos = ctx.message.photo;
+        const largest = photos[photos.length - 1];
+        const buf = await downloadTelegramFile(ctx, largest.file_id);
+        await sendMediaReply(ctx, buf, 'image/jpeg', ctx.message.caption ?? null);
+    });
+    bot.on('message:document', async (ctx) => {
+        const doc = ctx.message.document;
+        const mime = doc.mime_type ?? '';
+        if (!mime.startsWith('image/') && !mime.startsWith('audio/')) {
+            await ctx.reply('ตอนนี้รองรับแค่รูปภาพและไฟล์เสียงค่ะ');
+            return;
+        }
+        const buf = await downloadTelegramFile(ctx, doc.file_id);
+        await sendMediaReply(ctx, buf, mime, ctx.message.caption ?? null);
     });
     bot.on('message:text', async (ctx) => {
         const userId = String(ctx.from.id);
