@@ -33,8 +33,8 @@ export async function handleUserMessage(userId: string, userText: string): Promi
 
   let result = await chat.sendMessage(userText);
 
-  // Agentic tool loop
-  while (true) {
+  // Agentic tool loop — cap at 12 rounds to prevent runaway loops
+  for (let round = 0; round < 12; round++) {
     const parts = result.response.candidates?.[0]?.content.parts ?? [];
     const fnCalls = parts.filter(p => p.functionCall);
 
@@ -56,7 +56,19 @@ export async function handleUserMessage(userId: string, userText: string): Promi
     result = await chat.sendMessage(fnResponses);
   }
 
-  const text = result.response.text();
+  // .text() throws if response is blocked or has no text part — handle gracefully
+  let text: string;
+  try {
+    text = result.response.text();
+  } catch {
+    const finishReason = result.response.candidates?.[0]?.finishReason;
+    if (finishReason === 'SAFETY' || finishReason === 'RECITATION') {
+      text = 'Gemini บล็อก response นี้ค่ะ (safety filter) — ลองถามใหม่ด้วยคำอื่นได้เลย';
+    } else {
+      text = 'ไม่สามารถรับ response จาก Gemini ได้ค่ะ — กรุณาลองใหม่อีกครั้ง';
+    }
+  }
+
   await appendMessage(userId, 'assistant', text);
   return text;
 }
