@@ -12,6 +12,7 @@ import { calendarCreateEvent } from './calendar-create.js';
 import { calendarUpdateEvent, calendarDeleteEvent } from './calendar-update.js';
 import { getSessionContext, writeNoteToClaude, readAceNotes } from './session-bridge.js';
 import { saveFact, recallFacts } from './facts.js';
+import { webSearch, fetchUrl } from './web-search.js';
 export async function executeToolCall(name, args, userId) {
     try {
         switch (name) {
@@ -37,6 +38,8 @@ export async function executeToolCall(name, args, userId) {
             case 'read_ace_notes': return await readAceNotes(args);
             case 'save_fact': return await saveFact(args, userId);
             case 'recall_facts': return await recallFacts(args, userId);
+            case 'web_search': return await webSearch(args);
+            case 'fetch_url': return await fetchUrl(args);
             default:
                 return `Unknown tool: ${name}`;
         }

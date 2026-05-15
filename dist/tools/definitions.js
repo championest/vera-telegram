@@ -279,6 +279,36 @@ export const toolDefinitions = [
             required: [],
         },
     },
+    // ─── Web search ───
+    {
+        name: 'web_search',
+        description: 'Search the web for information — prices, news, facts, anything Champ asks about. Returns a summary + top results.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                query: { type: 'STRING', description: 'Search query in Thai or English' },
+                max_results: { type: 'NUMBER', description: 'Max results to return. Default 5.' },
+                search_depth: {
+                    type: 'STRING',
+                    enum: ['basic', 'advanced'],
+                    description: 'basic = fast, advanced = deeper content extraction. Default: basic',
+                },
+                include_answer: { type: 'BOOLEAN', description: 'Include an AI-generated direct answer. Default true.' },
+            },
+            required: ['query'],
+        },
+    },
+    {
+        name: 'fetch_url',
+        description: 'Fetch and extract clean text content from a specific URL. Use when Champ shares a link and wants a summary or details.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                url: { type: 'STRING', description: 'Full URL to fetch and extract content from' },
+            },
+            required: ['url'],
+        },
+    },
     // ─── Task update ───
     {
         name: 'log_team_task',

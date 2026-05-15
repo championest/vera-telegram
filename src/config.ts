@@ -14,6 +14,8 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_REDIRECT_URI: z.string().optional(),
+  // Tavily — optional, set to enable web_search + fetch_url tools
+  TAVILY_API_KEY: z.string().optional(),
 });
 
 export const config = envSchema.parse(process.env);
