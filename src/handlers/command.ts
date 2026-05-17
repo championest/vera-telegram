@@ -65,13 +65,10 @@ export async function handleConnect(ctx: Context) {
     await ctx.reply('ยังไม่ได้ตั้งค่า GOOGLE_CLIENT_ID/SECRET ในระบบค่ะ\nกรุณาเพิ่ม env vars ใน Railway ก่อนนะคะ');
     return;
   }
-  if (await isConnected()) {
-    await ctx.reply('เชื่อม Google แล้วค่ะ ✅\nใช้ Gmail และ Calendar ได้เลย');
-    return;
-  }
+  const connected = await isConnected();
   const url = getAuthUrl();
   await ctx.reply(
-    '*เชื่อม Google Account*\n\n' +
+    (connected ? '🔄 *Re-authorize Google* (อัป scope)\n\n' : '*เชื่อม Google Account*\n\n') +
     '1. กดปุ่มด้านล่าง → อนุมัติ Google Account\n' +
     '2. Browser เด้งไป localhost (error ปกติ)\n' +
     '3. Copy URL ทั้งหมดจาก address bar\n' +
