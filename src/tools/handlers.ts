@@ -1,3 +1,5 @@
+import { githubListRepos, githubReadFile, githubUpdateFile, githubCreatePr, githubListPrs } from './github.js';
+import { railwayListServices, railwayRedeploy, railwayGetLogs } from './railway.js';
 import { saveIdea } from './save-idea.js';
 import { setReminder } from './set-reminder.js';
 import { listReminders } from './list-reminders.js';
@@ -56,6 +58,14 @@ export async function executeToolCall(
       case 'fetch_url':              return await fetchUrl(args);
       case 'google_drive_save':      return await googleDriveSave(args);
       case 'notebooklm_create':      return await notebooklmCreate(args);
+      case 'github_list_repos':      return await githubListRepos(args);
+      case 'github_read_file':       return await githubReadFile(args);
+      case 'github_update_file':     return await githubUpdateFile(args);
+      case 'github_create_pr':       return await githubCreatePr(args);
+      case 'github_list_prs':        return await githubListPrs(args);
+      case 'railway_list_services':  return await railwayListServices(args);
+      case 'railway_redeploy':       return await railwayRedeploy(args);
+      case 'railway_get_logs':       return await railwayGetLogs(args);
       default:
         return `Unknown tool: ${name}`;
     }

@@ -414,6 +414,109 @@ export const toolDefinitions = [
             required: ['title', 'source_urls'],
         },
     },
+    // ─── GitHub ───
+    {
+        name: 'github_list_repos',
+        description: 'List GitHub repos Champ owns, sorted by last updated.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                limit: { type: 'NUMBER', description: 'Max repos to return. Default 10.' },
+            },
+            required: [],
+        },
+    },
+    {
+        name: 'github_read_file',
+        description: 'Read a file from a GitHub repo.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                repo: { type: 'STRING', description: 'Full repo name e.g. "championest/vera-telegram"' },
+                path: { type: 'STRING', description: 'File path e.g. "src/index.ts"' },
+                branch: { type: 'STRING', description: 'Branch name. Default: main' },
+            },
+            required: ['repo', 'path'],
+        },
+    },
+    {
+        name: 'github_update_file',
+        description: 'Create or update a file in a GitHub repo (auto-commits to branch).',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                repo: { type: 'STRING', description: 'Full repo name e.g. "championest/vera-telegram"' },
+                path: { type: 'STRING', description: 'File path e.g. "README.md"' },
+                content: { type: 'STRING', description: 'Full file content to write' },
+                message: { type: 'STRING', description: 'Commit message. Default: "update via Vera"' },
+                branch: { type: 'STRING', description: 'Branch to commit to. Default: main' },
+            },
+            required: ['repo', 'path', 'content'],
+        },
+    },
+    {
+        name: 'github_create_pr',
+        description: 'Create a pull request on GitHub.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                repo: { type: 'STRING', description: 'Full repo name' },
+                title: { type: 'STRING', description: 'PR title' },
+                head: { type: 'STRING', description: 'Source branch name' },
+                base: { type: 'STRING', description: 'Target branch. Default: main' },
+                body: { type: 'STRING', description: 'PR description' },
+            },
+            required: ['repo', 'title', 'head'],
+        },
+    },
+    {
+        name: 'github_list_prs',
+        description: 'List pull requests in a GitHub repo.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                repo: { type: 'STRING', description: 'Full repo name' },
+                state: { type: 'STRING', description: 'open | closed | all. Default: open' },
+            },
+            required: ['repo'],
+        },
+    },
+    // ─── Railway ───
+    {
+        name: 'railway_list_services',
+        description: 'List all services in a Railway project.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                project_id: { type: 'STRING', description: 'Railway project ID (uses RAILWAY_PROJECT_ID env if not provided)' },
+            },
+            required: [],
+        },
+    },
+    {
+        name: 'railway_redeploy',
+        description: 'Trigger a redeploy for a Railway service.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                service_id: { type: 'STRING', description: 'Railway service ID (from railway_list_services)' },
+                environment_id: { type: 'STRING', description: 'Railway environment ID' },
+            },
+            required: ['service_id', 'environment_id'],
+        },
+    },
+    {
+        name: 'railway_get_logs',
+        description: 'Get logs from a Railway deployment.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                deployment_id: { type: 'STRING', description: 'Railway deployment ID' },
+                limit: { type: 'NUMBER', description: 'Max log lines. Default 50.' },
+            },
+            required: ['deployment_id'],
+        },
+    },
     // ─── Task update ───
     {
         name: 'log_team_task',

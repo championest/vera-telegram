@@ -15,5 +15,10 @@ const envSchema = z.object({
     GOOGLE_REDIRECT_URI: z.string().optional(),
     // Tavily — optional, set to enable web_search + fetch_url tools
     TAVILY_API_KEY: z.string().optional(),
+    // GitHub — optional, set to enable github_* tools
+    GITHUB_TOKEN: z.string().optional(),
+    // Railway — optional, set to enable railway_* tools
+    RAILWAY_TOKEN: z.string().optional(),
+    RAILWAY_PROJECT_ID: z.string().optional(),
 });
 export const config = envSchema.parse(process.env);
