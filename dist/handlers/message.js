@@ -1,4 +1,4 @@
-import { genAI, MODEL_NAME } from '../gemini.js';
+import { genAI, MODEL_NAME, withRetry } from '../gemini.js';
 import { toolDefinitions } from '../tools/definitions.js';
 import { executeToolCall } from '../tools/handlers.js';
 import { loadHistory, appendMessage } from '../memory/conversation.js';
@@ -85,7 +85,7 @@ export async function handleUserMessage(userId, userText, onProgress, sendUpdate
         tools: [{ functionDeclarations: toolDefinitions }],
     });
     const chat = model.startChat({ history: geminiHistory });
-    let result = await chat.sendMessage(userText);
+    let result = await withRetry(() => chat.sendMessage(userText));
     // Agentic tool loop — cap at 12 rounds to prevent runaway loops
     for (let round = 0; round < 12; round++) {
         const parts = result.response.candidates?.[0]?.content.parts ?? [];
@@ -116,7 +116,7 @@ export async function handleUserMessage(userId, userText, onProgress, sendUpdate
                 },
             };
         }));
-        result = await chat.sendMessage(fnResponses);
+        result = await withRetry(() => chat.sendMessage(fnResponses));
     }
     // .text() throws if response is blocked or has no text part — handle gracefully
     let text;
