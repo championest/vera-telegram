@@ -22,8 +22,7 @@ export async function notebooklmCreate(args: Record<string, unknown>): Promise<s
       fields: 'id,webViewLink',
     });
 
-    const fileId = file.data.id!;
-    const notebookUrl = `https://notebooklm.google.com/notebook/${fileId}`;
+    const notebookUrl = file.data.webViewLink ?? `https://notebooklm.google.com/notebook/${file.data.id}`;
     const sourceList = sourceUrls.map((u, i) => `${i + 1}. ${u}`).join('\n');
 
     return `✅ NotebookLM สร้างแล้วค่ะ\nชื่อ: ${title}\nลิงก์: ${notebookUrl}\n\nSources ที่ต้องเพิ่มใน NotebookLM:\n${sourceList}`;
