@@ -38,6 +38,21 @@ export function createBot(): Bot {
     catch (err: any) { await ctx.reply(`เกิดข้อผิดพลาด: ${err.message}`); }
   });
 
+  bot.command('nbl_test', async (ctx) => {
+    await ctx.reply('🧪 ทดสอบ NotebookLM...');
+    try {
+      const { notebooklmCreate } = await import('./tools/notebooklm.js');
+      const result = await notebooklmCreate({
+        title: 'Test Notebook',
+        source_urls: ['https://en.wikipedia.org/wiki/Artificial_intelligence'],
+        summary_note: 'Test notebook created by Vera',
+      });
+      await ctx.reply(result);
+    } catch (err: any) {
+      await ctx.reply(`❌ ${err.message}`);
+    }
+  });
+
   bot.command('nbl_connect', async (ctx) => {
     await ctx.reply(
       '📓 *NotebookLM Setup*\n\n' +

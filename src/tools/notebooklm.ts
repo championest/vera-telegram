@@ -71,7 +71,13 @@ export async function notebooklmCreate(args: Record<string, unknown>): Promise<s
   const sourceUrls = (args.source_urls as string[]) ?? [];
   const summaryNote = String(args.summary_note ?? '');
 
-  const browser = await launchBrowser();
+  let browser: any = null;
+  try {
+    browser = await launchBrowser();
+  } catch (err: any) {
+    console.error('[NotebookLM] Browser launch failed:', err);
+    return `ERROR_NBL: Chromium launch failed — ${err.message?.slice(0, 150)}`;
+  }
 
   try {
     const context = await getAuthenticatedContext(browser);
@@ -150,13 +156,12 @@ export async function notebooklmCreate(args: Record<string, unknown>): Promise<s
     return `✅ NotebookLM สร้างแล้วค่ะ\nชื่อ: ${title}\nSources: ${sourceUrls.length} แหล่ง\nลิงก์: ${notebookUrl}`;
 
   } catch (err: any) {
-    await browser.close();
+    try { browser?.close(); } catch { /* ignore */ }
     console.error('[NotebookLM] Creation failed:', err);
 
-    // Fallback: clear cached session so next attempt tries fresh auth
-    try { await db.collection('vera-notebooklm').doc('session').delete(); } catch {}
-
-    return `⚠️ NotebookLM สร้างไม่สำเร็จ: ${err.message?.slice(0, 100)}\nกรุณาใช้คำสั่ง /nbl_connect เพื่อ setup auth ก่อนค่ะ`;
+    // Don't clear cookies on auth error — might be a transient issue
+    const errMsg = err.message?.slice(0, 150) ?? String(err).slice(0, 150);
+    return `ERROR_NBL: ${errMsg}`;
   }
 }
 
