@@ -52,6 +52,40 @@ async function getAuthenticatedContext(browser) {
     await page.close();
     return context;
 }
+/** Debug helper — returns all visible button/link text on the current page */
+export async function notebooklmDebugPage() {
+    let browser = null;
+    try {
+        browser = await launchBrowser();
+        const context = await getAuthenticatedContext(browser);
+        const page = await context.newPage();
+        await page.goto(NBL_BASE, { waitUntil: 'networkidle', timeout: 30000 });
+        const finalUrl = page.url();
+        // Collect all button/link text and aria-labels
+        const elements = await page.evaluate(() => {
+            const sel = 'button, a, [role="button"], [role="link"]';
+            return Array.from(document.querySelectorAll(sel))
+                .map(el => ({
+                tag: el.tagName,
+                text: el.innerText?.trim().slice(0, 60),
+                label: el.getAttribute('aria-label')?.slice(0, 60),
+                testid: el.getAttribute('data-testid'),
+            }))
+                .filter(e => e.text || e.label)
+                .slice(0, 30);
+        });
+        await browser.close();
+        const lines = elements.map((e) => `[${e.tag}] text="${e.text}" label="${e.label}" testid="${e.testid}"`);
+        return `URL: ${finalUrl}\n\n${lines.join('\n')}`;
+    }
+    catch (err) {
+        try {
+            browser?.close();
+        }
+        catch { }
+        return `DEBUG_ERROR: ${err.message?.slice(0, 200)}`;
+    }
+}
 export async function notebooklmCreate(args) {
     const title = String(args.title ?? 'Research');
     const sourceUrls = args.source_urls ?? [];
@@ -70,7 +104,7 @@ export async function notebooklmCreate(args) {
         // Navigate to NotebookLM
         await page.goto(NBL_BASE, { waitUntil: 'networkidle', timeout: 30000 });
         // Click "New notebook" button
-        const newNotebookBtn = page.locator('[data-testid="new-notebook-button"], button:has-text("New notebook"), button:has-text("notebook ใหม่")').first();
+        const newNotebookBtn = page.locator('[data-testid="new-notebook-button"], button:has-text("New notebook"), button:has-text("notebook ใหม่"), button:has-text("Create"), button:has-text("New")').first();
         await newNotebookBtn.waitFor({ timeout: 15000 });
         await newNotebookBtn.click();
         // Wait for notebook to load (URL changes to /notebook/ID)

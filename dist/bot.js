@@ -38,6 +38,23 @@ export function createBot() {
             await ctx.reply(`เกิดข้อผิดพลาด: ${err.message}`);
         }
     });
+    bot.command('nbl_debug', async (ctx) => {
+        await ctx.reply('🔍 กำลัง inspect NotebookLM page...');
+        try {
+            const { notebooklmDebugPage } = await import('./tools/notebooklm.js');
+            const result = await notebooklmDebugPage();
+            // Split if too long for Telegram
+            if (result.length > 4000) {
+                await ctx.reply(result.slice(0, 4000));
+            }
+            else {
+                await ctx.reply(result);
+            }
+        }
+        catch (err) {
+            await ctx.reply(`❌ ${err.message}`);
+        }
+    });
     bot.command('nbl_test', async (ctx) => {
         await ctx.reply('🧪 ทดสอบ NotebookLM...');
         try {
