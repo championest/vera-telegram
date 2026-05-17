@@ -38,6 +38,32 @@ export function createBot(): Bot {
     catch (err: any) { await ctx.reply(`เกิดข้อผิดพลาด: ${err.message}`); }
   });
 
+  bot.command('nbl_connect', async (ctx) => {
+    await ctx.reply(
+      '📓 *NotebookLM Setup*\n\n' +
+      'เพื่อให้ Vera สร้าง NotebookLM ได้อัตโนมัติ ต้องทำครั้งเดียว:\n\n' +
+      '1. เปิด [notebooklm.google.com](https://notebooklm.google.com) บน Chrome\n' +
+      '2. Login ด้วย Google account ของ Champ\n' +
+      '3. กด F12 → Application → Cookies → https://notebooklm.google.com\n' +
+      '4. Copy cookies ทั้งหมดเป็น JSON (ใช้ EditThisCookie extension แล้วกด Export)\n' +
+      '5. ส่งมาให้ Vera ด้วยคำสั่ง:\n' +
+      '`/nbl_cookies [paste JSON here]`',
+      { parse_mode: 'Markdown' }
+    );
+  });
+
+  bot.command('nbl_cookies', async (ctx) => {
+    const text = ctx.message?.text ?? '';
+    const cookiesJson = text.replace('/nbl_cookies', '').trim();
+    if (!cookiesJson) {
+      await ctx.reply('กรุณาใส่ cookies JSON หลังคำสั่ง');
+      return;
+    }
+    const { notebooklmSaveSession } = await import('./tools/notebooklm.js');
+    const result = await notebooklmSaveSession(cookiesJson);
+    await ctx.reply(result);
+  });
+
   bot.on('callback_query:data', async (ctx) => {
     const data = ctx.callbackQuery.data ?? '';
 
@@ -192,8 +218,12 @@ ${ideas || '(ไม่มี)'}
       try { await ctx.api.editMessageText(ctx.chat.id, statusMsgId, text); } catch { /* ignore */ }
     };
 
+    const sendUpdate = async (text: string) => {
+      try { await ctx.reply(text); } catch { /* ignore */ }
+    };
+
     try {
-      const reply = await handleUserMessage(userId, rawText, updateStatus);
+      const reply = await handleUserMessage(userId, rawText, updateStatus, sendUpdate);
 
       // Remove status message before sending final reply
       if (statusMsgId != null) {

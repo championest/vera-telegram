@@ -34,12 +34,38 @@ const TOOL_LABELS = {
     save_research: '📚 บันทึก research',
     list_research: '📚 ดูรายการ research',
     get_research: '📚 ดู research',
+    google_drive_save: '💾 บันทึก Google Drive',
+    notebooklm_create: '📓 สร้าง NotebookLM',
 };
+/** Tools that warrant a sendUpdate notification after completion */
+const MAJOR_TOOLS = new Set(['web_search', 'save_research', 'google_drive_save', 'notebooklm_create']);
+function buildUpdateMessage(toolName, result) {
+    switch (toolName) {
+        case 'web_search':
+            return '✅ ค้นเสร็จ — พบข้อมูล';
+        case 'save_research': {
+            // Try to extract ID from result string like "ID: abc123"
+            const idMatch = result.match(/ID:\s*(\S+)/);
+            return idMatch ? `✅ บันทึก Firestore · ID: ${idMatch[1]}` : '✅ บันทึก Firestore';
+        }
+        case 'google_drive_save': {
+            // Try to extract link from result
+            const linkMatch = result.match(/ลิงก์:\s*(https?:\/\/\S+)/);
+            return linkMatch ? `✅ Drive บันทึกแล้ว · ${linkMatch[1]}` : '✅ Drive บันทึกแล้ว';
+        }
+        case 'notebooklm_create': {
+            const linkMatch = result.match(/ลิงก์:\s*(https?:\/\/\S+)/);
+            return linkMatch ? `✅ NotebookLM พร้อม · ${linkMatch[1]}` : '✅ NotebookLM พร้อม';
+        }
+        default:
+            return null;
+    }
+}
 function toolsToLabel(toolNames) {
     const labels = toolNames.map(n => TOOL_LABELS[n] ?? `🔧 ${n}`);
     return labels.join(' · ');
 }
-export async function handleUserMessage(userId, userText, onProgress) {
+export async function handleUserMessage(userId, userText, onProgress, sendUpdate) {
     await appendMessage(userId, 'user', userText);
     const [history, longTermMemory] = await Promise.all([
         loadHistory(userId),
@@ -73,6 +99,16 @@ export async function handleUserMessage(userId, userText, onProgress) {
         const fnResponses = await Promise.all(fnCalls.map(async (p) => {
             const fn = p.functionCall;
             const output = await executeToolCall(fn.name, fn.args, userId);
+            // Send a NEW message for major tool completions
+            if (sendUpdate && MAJOR_TOOLS.has(fn.name)) {
+                const updateMsg = buildUpdateMessage(fn.name, output);
+                if (updateMsg) {
+                    try {
+                        await sendUpdate(updateMsg);
+                    }
+                    catch { /* non-fatal */ }
+                }
+            }
             return {
                 functionResponse: {
                     name: fn.name,

@@ -15,6 +15,8 @@ import { saveFact, recallFacts } from './facts.js';
 import { webSearch, fetchUrl } from './web-search.js';
 import { gmailCreateDraft, gmailListDrafts } from './gmail-draft.js';
 import { saveResearch, listResearch, getResearch } from './save-research.js';
+import { googleDriveSave } from './google-drive.js';
+import { notebooklmCreate } from './notebooklm.js';
 export async function executeToolCall(name, args, userId) {
     try {
         switch (name) {
@@ -47,6 +49,8 @@ export async function executeToolCall(name, args, userId) {
             case 'gmail_list_drafts': return await gmailListDrafts(args);
             case 'web_search': return await webSearch(args);
             case 'fetch_url': return await fetchUrl(args);
+            case 'google_drive_save': return await googleDriveSave(args);
+            case 'notebooklm_create': return await notebooklmCreate(args);
             default:
                 return `Unknown tool: ${name}`;
         }

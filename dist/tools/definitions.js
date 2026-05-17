@@ -382,6 +382,38 @@ export const toolDefinitions = [
             required: ['url'],
         },
     },
+    // ─── Google Drive ───
+    {
+        name: 'google_drive_save',
+        description: 'บันทึก research summary เป็น Google Doc ใน Google Drive โฟลเดอร์ "Vera Research"',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                title: { type: 'STRING', description: 'ชื่อ document' },
+                content: { type: 'STRING', description: 'เนื้อหาทั้งหมดที่ต้องการบันทึก' },
+                folder: { type: 'STRING', description: 'ชื่อโฟลเดอร์ใน Drive (default: Vera Research)' },
+            },
+            required: ['title', 'content'],
+        },
+    },
+    // ─── NotebookLM ───
+    {
+        name: 'notebooklm_create',
+        description: 'สร้าง NotebookLM notebook พร้อม source URLs และ summary note',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                title: { type: 'STRING', description: 'ชื่อ notebook' },
+                source_urls: {
+                    type: 'ARRAY',
+                    items: { type: 'STRING' },
+                    description: 'รายการ URL ที่ต้องการเพิ่มเป็น source (สูงสุด 5)',
+                },
+                summary_note: { type: 'STRING', description: 'สรุป research เพื่อเพิ่มเป็น note ใน notebook' },
+            },
+            required: ['title', 'source_urls'],
+        },
+    },
     // ─── Task update ───
     {
         name: 'log_team_task',
