@@ -3,6 +3,7 @@ import { createBot } from './bot.js';
 import { startReminderScheduler } from './scheduler/reminders.js';
 import { startMorningBriefScheduler } from './scheduler/morning-brief.js';
 import { startStuckTaskChecker } from './scheduler/stuck-tasks.js';
+import { startNotificationScheduler } from './scheduler/notifications.js';
 import { createHttpServer } from './server/http.js';
 
 async function main() {
@@ -14,6 +15,7 @@ async function main() {
   startReminderScheduler(bot);
   startMorningBriefScheduler(bot);
   startStuckTaskChecker(bot);
+  startNotificationScheduler(bot);
 
   await bot.start({
     onStart: (info) => console.log(`Vera online as @${info.username}`),
