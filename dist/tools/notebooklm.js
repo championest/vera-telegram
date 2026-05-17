@@ -9,46 +9,30 @@ async function launchBrowser() {
     });
 }
 async function getAuthenticatedContext(browser) {
-    // Try stored cookies first
-    const snap = await db.collection('vera-notebooklm').doc('session').get();
-    if (snap.exists) {
-        const data = snap.data();
-        const expiresAt = data['expiresAt']?.toDate?.();
-        if (expiresAt && expiresAt > new Date()) {
-            const context = await browser.newContext();
-            await context.addCookies(data['cookies']);
-            return context;
-        }
-    }
-    // Try to auth via Google OAuth access token
+    // Session cookies are IP-bound — always auth via OAuth token instead
     const auth = await getAuthedClient();
     if (!auth)
         throw new Error('Google ยังไม่ได้เชื่อมค่ะ — กรุณาใช้ /connect');
     const { token: accessToken } = await auth.getAccessToken();
     if (!accessToken)
         throw new Error('ไม่สามารถดึง access token ได้');
-    const context = await browser.newContext();
-    const page = await context.newPage();
-    // Use OAuthLogin to establish Google browser session
-    await page.goto(`https://accounts.google.com/accounts/OAuthLogin?source=ogb&package_name=com.google.android.googlequicksearchbox&key=${accessToken}`, { waitUntil: 'networkidle', timeout: 30000 });
-    // Check if we landed on a Google page (session established)
-    const url = page.url();
-    if (!url.includes('google.com')) {
-        throw new Error('Google auth failed — URL: ' + url);
-    }
-    // Navigate to NotebookLM to trigger auth
-    await page.goto(NBL_BASE, { waitUntil: 'networkidle', timeout: 30000 });
-    const finalUrl = page.url();
-    if (finalUrl.includes('accounts.google.com') || finalUrl.includes('signin')) {
-        throw new Error('NotebookLM auth failed — still on sign-in page');
-    }
-    // Store cookies for future use (7 days)
-    const cookies = await context.cookies();
-    await db.collection('vera-notebooklm').doc('session').set({
-        cookies,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        updatedAt: new Date(),
+    const context = await browser.newContext({
+        userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
     });
+    const page = await context.newPage();
+    // Exchange OAuth access token for a Google browser session
+    await page.goto(`https://accounts.google.com/accounts/OAuthLogin?service=lso&source=ogb&package_name=com.google.android.googlequicksearchbox&key=${accessToken}`, { waitUntil: 'networkidle', timeout: 30000 });
+    const afterOAuth = page.url();
+    // If still on accounts.google.com sign-in page, OAuthLogin failed
+    if (afterOAuth.includes('/signin/') || afterOAuth.includes('ServiceLogin') || afterOAuth.includes('identifier')) {
+        throw new Error(`OAuthLogin failed — still on: ${afterOAuth.slice(0, 120)}`);
+    }
+    // Navigate to NotebookLM
+    await page.goto(NBL_BASE, { waitUntil: 'networkidle', timeout: 30000 });
+    const nblUrl = page.url();
+    if (nblUrl.includes('accounts.google.com')) {
+        throw new Error(`NotebookLM redirect to sign-in — URL: ${nblUrl.slice(0, 120)}`);
+    }
     await page.close();
     return context;
 }
@@ -57,10 +41,18 @@ export async function notebooklmDebugPage() {
     let browser = null;
     try {
         browser = await launchBrowser();
-        const context = await getAuthenticatedContext(browser);
+        // Step 1: get OAuth token and try OAuthLogin
+        const auth = await getAuthedClient();
+        const { token: accessToken } = await auth.getAccessToken();
+        const context = await browser.newContext({
+            userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        });
         const page = await context.newPage();
+        await page.goto(`https://accounts.google.com/accounts/OAuthLogin?service=lso&source=ogb&package_name=com.google.android.googlequicksearchbox&key=${accessToken}`, { waitUntil: 'networkidle', timeout: 30000 });
+        const afterOAuth = page.url();
         await page.goto(NBL_BASE, { waitUntil: 'networkidle', timeout: 30000 });
         const finalUrl = page.url();
+        const debugHeader = `OAuthLogin → ${afterOAuth.slice(0, 100)}\nNotebookLM → ${finalUrl.slice(0, 100)}\n\n`;
         // Collect all button/link text and aria-labels
         const elements = await page.evaluate(() => {
             const sel = 'button, a, [role="button"], [role="link"]';
@@ -76,7 +68,7 @@ export async function notebooklmDebugPage() {
         });
         await browser.close();
         const lines = elements.map((e) => `[${e.tag}] text="${e.text}" label="${e.label}" testid="${e.testid}"`);
-        return `URL: ${finalUrl}\n\n${lines.join('\n')}`;
+        return debugHeader + lines.join('\n');
     }
     catch (err) {
         try {
