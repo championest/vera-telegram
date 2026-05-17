@@ -399,24 +399,6 @@ export const toolDefinitions: FunctionDeclaration[] = [
       required: ['title', 'content'],
     },
   },
-  // ─── NotebookLM ───
-  {
-    name: 'notebooklm_create',
-    description: 'สร้าง NotebookLM notebook พร้อม source URLs และ summary note',
-    parameters: {
-      type: 'OBJECT' as any,
-      properties: {
-        title: { type: 'STRING' as any, description: 'ชื่อ notebook' },
-        source_urls: {
-          type: 'ARRAY' as any,
-          items: { type: 'STRING' as any },
-          description: 'รายการ URL ที่ต้องการเพิ่มเป็น source (สูงสุด 5)',
-        },
-        summary_note: { type: 'STRING' as any, description: 'สรุป research เพื่อเพิ่มเป็น note ใน notebook' },
-      },
-      required: ['title', 'source_urls'],
-    },
-  },
   // ─── GitHub ───
   {
     name: 'github_list_repos',
