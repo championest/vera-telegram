@@ -103,6 +103,8 @@ export async function handleUserMessage(
 
   let result = await withRetry(() => chat.sendMessage(userText));
 
+  const executedTools: string[] = [];
+
   // Agentic tool loop — cap at 12 rounds to prevent runaway loops
   for (let round = 0; round < 12; round++) {
     const parts = result.response.candidates?.[0]?.content.parts ?? [];
@@ -111,6 +113,7 @@ export async function handleUserMessage(
     if (fnCalls.length === 0) break;
 
     const toolNames = fnCalls.map(p => p.functionCall!.name);
+    executedTools.push(...toolNames);
     if (onProgress) {
       await onProgress(`⏳ ${toolsToLabel(toolNames)}...`);
     }
@@ -152,7 +155,14 @@ export async function handleUserMessage(
       text = 'ไม่สามารถรับ response จาก Gemini ได้ค่ะ — กรุณาลองใหม่อีกครั้ง';
     }
   }
-  if (!text?.trim()) text = '✅ ดำเนินการเสร็จแล้วค่ะ';
+  if (!text?.trim()) {
+    if (executedTools.length > 0) {
+      const summary = executedTools.map(t => TOOL_LABELS[t] ?? t).join(' → ');
+      text = `✅ เสร็จแล้วค่ะ\nดำเนินการ: ${summary}`;
+    } else {
+      text = '✅ ดำเนินการเสร็จแล้วค่ะ';
+    }
+  }
 
   await appendMessage(userId, 'assistant', text);
   return text;
