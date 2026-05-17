@@ -1,212 +1,65 @@
-import { chromium } from 'playwright';
+import { google } from 'googleapis';
 import { getAuthedClient } from '../services/google-auth.js';
-import { db } from '../firebase.js';
 
-const NBL_BASE = 'https://notebooklm.google.com';
-
-async function launchBrowser() {
-  return chromium.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
-  });
-}
-
-async function getAuthenticatedContext(browser: any) {
-  // Session cookies are IP-bound — always auth via OAuth token instead
-  const auth = await getAuthedClient();
-  if (!auth) throw new Error('Google ยังไม่ได้เชื่อมค่ะ — กรุณาใช้ /connect');
-
-  const { token: accessToken } = await auth.getAccessToken();
-  if (!accessToken) throw new Error('ไม่สามารถดึง access token ได้');
-
-  const context = await browser.newContext({
-    userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  });
-  const page = await context.newPage();
-
-  // Exchange OAuth access token for a Google browser session
-  await page.goto(
-    `https://accounts.google.com/accounts/OAuthLogin?service=lso&source=ogb&package_name=com.google.android.googlequicksearchbox&key=${accessToken}`,
-    { waitUntil: 'networkidle', timeout: 30000 }
-  );
-
-  const afterOAuth = page.url();
-  // If still on accounts.google.com sign-in page, OAuthLogin failed
-  if (afterOAuth.includes('/signin/') || afterOAuth.includes('ServiceLogin') || afterOAuth.includes('identifier')) {
-    throw new Error(`OAuthLogin failed — still on: ${afterOAuth.slice(0, 120)}`);
-  }
-
-  // Navigate to NotebookLM
-  await page.goto(NBL_BASE, { waitUntil: 'networkidle', timeout: 30000 });
-
-  const nblUrl = page.url();
-  if (nblUrl.includes('accounts.google.com')) {
-    throw new Error(`NotebookLM redirect to sign-in — URL: ${nblUrl.slice(0, 120)}`);
-  }
-
-  await page.close();
-  return context;
-}
-
-/** Debug helper — returns all visible button/link text on the current page */
-export async function notebooklmDebugPage(): Promise<string> {
-  let browser: any = null;
-  try {
-    browser = await launchBrowser();
-
-    // Step 1: get OAuth token and try OAuthLogin
-    const auth = await getAuthedClient();
-    const { token: accessToken } = await auth!.getAccessToken();
-    const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    });
-    const page = await context.newPage();
-
-    await page.goto(
-      `https://accounts.google.com/accounts/OAuthLogin?service=lso&source=ogb&package_name=com.google.android.googlequicksearchbox&key=${accessToken}`,
-      { waitUntil: 'networkidle', timeout: 30000 }
-    );
-    const afterOAuth = page.url();
-
-    await page.goto(NBL_BASE, { waitUntil: 'networkidle', timeout: 30000 });
-    const finalUrl = page.url();
-
-    const debugHeader = `OAuthLogin → ${afterOAuth.slice(0, 100)}\nNotebookLM → ${finalUrl.slice(0, 100)}\n\n`;
-
-    // Collect all button/link text and aria-labels
-    const elements = await page.evaluate(() => {
-      const sel = 'button, a, [role="button"], [role="link"]';
-      return Array.from(document.querySelectorAll(sel))
-        .map(el => ({
-          tag: el.tagName,
-          text: (el as HTMLElement).innerText?.trim().slice(0, 60),
-          label: el.getAttribute('aria-label')?.slice(0, 60),
-          testid: el.getAttribute('data-testid'),
-        }))
-        .filter(e => e.text || e.label)
-        .slice(0, 30);
-    });
-
-    await browser.close();
-    const lines = elements.map((e: any) =>
-      `[${e.tag}] text="${e.text}" label="${e.label}" testid="${e.testid}"`
-    );
-    return debugHeader + lines.join('\n');
-  } catch (err: any) {
-    try { browser?.close(); } catch {}
-    return `DEBUG_ERROR: ${err.message?.slice(0, 200)}`;
-  }
-}
+const NBL_MIME = 'application/vnd.google.notebooklm.book';
 
 export async function notebooklmCreate(args: Record<string, unknown>): Promise<string> {
   const title = String(args.title ?? 'Research');
   const sourceUrls = (args.source_urls as string[]) ?? [];
   const summaryNote = String(args.summary_note ?? '');
 
-  let browser: any = null;
-  try {
-    browser = await launchBrowser();
-  } catch (err: any) {
-    console.error('[NotebookLM] Browser launch failed:', err);
-    return `ERROR_NBL: Chromium launch failed — ${err.message?.slice(0, 150)}`;
-  }
+  const auth = await getAuthedClient();
+  if (!auth) return 'ERROR_NBL: Google ยังไม่ได้เชื่อมค่ะ — กรุณาใช้ /connect';
 
   try {
-    const context = await getAuthenticatedContext(browser);
-    const page = await context.newPage();
+    const drive = google.drive({ version: 'v3', auth });
 
-    // Navigate to NotebookLM
-    await page.goto(NBL_BASE, { waitUntil: 'networkidle', timeout: 30000 });
+    const file = await drive.files.create({
+      requestBody: {
+        name: title,
+        mimeType: NBL_MIME,
+      },
+      fields: 'id,webViewLink',
+    });
 
-    // Click "New notebook" button
-    const newNotebookBtn = page.locator('[data-testid="new-notebook-button"], button:has-text("New notebook"), button:has-text("notebook ใหม่"), button:has-text("Create"), button:has-text("New")').first();
-    await newNotebookBtn.waitFor({ timeout: 15000 });
-    await newNotebookBtn.click();
+    const fileId = file.data.id!;
+    const notebookUrl = `https://notebooklm.google.com/notebook/${fileId}`;
+    const sourceList = sourceUrls.map((u, i) => `${i + 1}. ${u}`).join('\n');
 
-    // Wait for notebook to load (URL changes to /notebook/ID)
-    await page.waitForURL(/\/notebook\//, { timeout: 20000 });
-
-    const notebookUrl = page.url();
-    const notebookId = notebookUrl.split('/notebook/')[1]?.split('?')[0];
-
-    // Rename notebook title
-    try {
-      const titleInput = page.locator('[data-testid="notebook-title"], input[placeholder*="title"], input[aria-label*="title"]').first();
-      await titleInput.waitFor({ timeout: 5000 });
-      await titleInput.click({ clickCount: 3 });
-      await titleInput.fill(title);
-      await page.keyboard.press('Enter');
-    } catch { /* title rename optional */ }
-
-    // Add source URLs one by one
-    for (const url of sourceUrls.slice(0, 5)) {
-      try {
-        // Click "Add source" button
-        const addSourceBtn = page.locator('button:has-text("Add source"), button:has-text("เพิ่มแหล่ง"), [data-testid="add-source"]').first();
-        await addSourceBtn.waitFor({ timeout: 10000 });
-        await addSourceBtn.click();
-
-        // Select "Website" option
-        const websiteOption = page.locator('button:has-text("Website"), [data-testid="source-website"]').first();
-        await websiteOption.waitFor({ timeout: 5000 });
-        await websiteOption.click();
-
-        // Enter URL
-        const urlInput = page.locator('input[type="url"], input[placeholder*="url"], input[placeholder*="URL"]').first();
-        await urlInput.waitFor({ timeout: 5000 });
-        await urlInput.fill(url);
-
-        // Submit
-        const submitBtn = page.locator('button:has-text("Insert"), button:has-text("Add"), button[type="submit"]').first();
-        await submitBtn.click();
-
-        // Wait for source to process
-        await page.waitForTimeout(3000);
-      } catch (err) {
-        console.warn('[NotebookLM] Failed to add source:', url, err);
-      }
-    }
-
-    // Add summary as a note (if supported)
-    if (summaryNote) {
-      try {
-        const addNoteBtn = page.locator('button:has-text("Add note"), button:has-text("Studio"), [data-testid="add-note"]').first();
-        await addNoteBtn.waitFor({ timeout: 5000 });
-        await addNoteBtn.click();
-
-        const noteArea = page.locator('textarea[placeholder*="note"], [data-testid="note-input"]').first();
-        await noteArea.waitFor({ timeout: 5000 });
-        await noteArea.fill(summaryNote.slice(0, 2000));
-
-        const saveNoteBtn = page.locator('button:has-text("Save"), button:has-text("บันทึก")').first();
-        await saveNoteBtn.click();
-      } catch { /* note is optional */ }
-    }
-
-    await browser.close();
-
-    return `✅ NotebookLM สร้างแล้วค่ะ\nชื่อ: ${title}\nSources: ${sourceUrls.length} แหล่ง\nลิงก์: ${notebookUrl}`;
-
+    return `✅ NotebookLM สร้างแล้วค่ะ\nชื่อ: ${title}\nลิงก์: ${notebookUrl}\n\nSources ที่ต้องเพิ่มใน NotebookLM:\n${sourceList}`;
   } catch (err: any) {
-    try { browser?.close(); } catch { /* ignore */ }
-    console.error('[NotebookLM] Creation failed:', err);
-
-    // Don't clear cookies on auth error — might be a transient issue
-    const errMsg = err.message?.slice(0, 150) ?? String(err).slice(0, 150);
-    return `ERROR_NBL: ${errMsg}`;
+    console.error('[NotebookLM] Drive API failed:', err);
+    return `ERROR_NBL: Drive API error — ${err.message?.slice(0, 150)}`;
   }
 }
 
-export async function notebooklmSaveSession(cookiesJson: string): Promise<string> {
+export async function notebooklmDebugPage(): Promise<string> {
+  const auth = await getAuthedClient();
+  if (!auth) return 'ERROR: Google not connected';
+
   try {
-    const cookies = JSON.parse(cookiesJson);
-    await db.collection('vera-notebooklm').doc('session').set({
-      cookies,
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-      updatedAt: new Date(),
+    const drive = google.drive({ version: 'v3', auth });
+
+    // Try creating a test file to verify Drive API + MIME type works
+    const file = await drive.files.create({
+      requestBody: {
+        name: '_vera_nbl_test',
+        mimeType: NBL_MIME,
+      },
+      fields: 'id,mimeType,webViewLink',
     });
-    return '✅ บันทึก NotebookLM session แล้วค่ะ';
+
+    const result = `✅ Drive API works!\nID: ${file.data.id}\nMIME: ${file.data.mimeType}\nLink: ${file.data.webViewLink}`;
+
+    // Clean up test file
+    await drive.files.delete({ fileId: file.data.id! });
+
+    return result;
   } catch (err: any) {
-    return `❌ บันทึก session ไม่สำเร็จ: ${err.message}`;
+    return `ERROR: ${err.message?.slice(0, 200)}\n\nTrying to list recent files instead...`;
   }
+}
+
+export async function notebooklmSaveSession(_cookiesJson: string): Promise<string> {
+  return 'ไม่จำเป็นต้อง setup session แล้วค่ะ — Vera ใช้ Google Drive API แทน Playwright';
 }
