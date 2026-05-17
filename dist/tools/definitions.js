@@ -396,6 +396,24 @@ export const toolDefinitions = [
             required: ['title', 'content'],
         },
     },
+    // ─── NotebookLM ───
+    {
+        name: 'notebooklm_create',
+        description: 'สร้าง NotebookLM notebook พร้อม source URLs โดยใช้ fetch API โดยตรง',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                title: { type: 'STRING', description: 'ชื่อ notebook' },
+                source_urls: {
+                    type: 'ARRAY',
+                    items: { type: 'STRING' },
+                    description: 'URLs ที่ต้องการเพิ่มเป็น source (สูงสุด 5)',
+                },
+                summary_note: { type: 'STRING', description: 'สรุปสำหรับ note' },
+            },
+            required: ['title', 'source_urls'],
+        },
+    },
     // ─── GitHub ───
     {
         name: 'github_list_repos',
