@@ -77,7 +77,8 @@ Rena (Customer Insight), Max (Math), Sage (Instructional Design), Flux (Workflow
 3. **[3/6] ค้น angle 3** (web_search: เชิงลึก/ตัวเลข/practical)
 4. **[4/6] สังเคราะห์** → save_research (Firestore) พร้อม confidence labels (✅⚠️❌) ทุก finding
 5. **[5/6] บันทึก Drive** → google_drive_save ชื่อ "Research: {topic}" เนื้อหาครบทุก finding + sources
-6. **[6/6] NotebookLM** → notebooklm_create ชื่อ "Research: {topic}" source_urls = URL ทั้งหมดจาก step 1-3
+6. **[6/6] แจ้ง Ace** → write_note_to_claude format ดังนี้:
+   "NotebookLM ready: [topic] | Drive: [drive_link จาก step 5] | Sources: [url1], [url2], [url3] | Action: open NotebookLM → New notebook → Add sources from list above"
 
 ห้ามหยุดก่อน step 6 เสร็จ ห้าม skip ขั้นตอนใด
 ห้ามสร้าง URL ที่ไม่ได้มาจาก tool result — ใช้ลิงก์จาก tool เท่านั้น

@@ -396,24 +396,6 @@ export const toolDefinitions = [
             required: ['title', 'content'],
         },
     },
-    // ─── NotebookLM ───
-    {
-        name: 'notebooklm_create',
-        description: 'สร้าง NotebookLM notebook พร้อม source URLs โดยใช้ fetch API โดยตรง',
-        parameters: {
-            type: 'OBJECT',
-            properties: {
-                title: { type: 'STRING', description: 'ชื่อ notebook' },
-                source_urls: {
-                    type: 'ARRAY',
-                    items: { type: 'STRING' },
-                    description: 'URLs ที่ต้องการเพิ่มเป็น source (สูงสุด 5)',
-                },
-                summary_note: { type: 'STRING', description: 'สรุปสำหรับ note' },
-            },
-            required: ['title', 'source_urls'],
-        },
-    },
     // ─── GitHub ───
     {
         name: 'github_list_repos',
@@ -515,6 +497,114 @@ export const toolDefinitions = [
                 limit: { type: 'NUMBER', description: 'Max log lines. Default 50.' },
             },
             required: ['deployment_id'],
+        },
+    },
+    // ─── Champ vision ───
+    {
+        name: 'save_vision',
+        description: 'บันทึก vision / เป้าหมายอนาคตของ Champ ลง champ-vision collection (แสดงที่ /champ/vision)',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                title: { type: 'STRING', description: 'ชื่อ vision เช่น "มีบ้านหลังใหม่"' },
+                body: { type: 'STRING', description: 'รายละเอียด vision' },
+                category: {
+                    type: 'STRING',
+                    enum: ['business', 'personal', 'financial', 'lifestyle'],
+                    description: 'หมวดหมู่. Default: personal',
+                },
+                horizon: {
+                    type: 'STRING',
+                    enum: ['1year', '3year', '5year', 'lifetime'],
+                    description: 'ระยะเวลา. Default: 1year',
+                },
+                image_url: { type: 'STRING', description: 'URL รูปภาพประกอบ (optional)' },
+            },
+            required: ['title'],
+        },
+    },
+    // ─── Champ finance ───
+    {
+        name: 'log_finance',
+        description: 'บันทึกรายรับ รายจ่าย หรือเป้าหมายการเงินของ Champ ลง champ-finance collection (แสดงที่ /champ/finance)',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                type: {
+                    type: 'STRING',
+                    enum: ['income', 'expense', 'goal'],
+                    description: 'ประเภท: income=รายรับ, expense=รายจ่าย, goal=เป้าหมาย',
+                },
+                label: { type: 'STRING', description: 'ชื่อรายการ เช่น "เงินเดือน", "ค่าเช่า", "เก็บเงินซื้อคอนโด"' },
+                amount: { type: 'NUMBER', description: 'จำนวนเงิน (บาท)' },
+                category: { type: 'STRING', description: 'หมวดหมู่ เช่น salary, rent, food, investment' },
+                month: { type: 'STRING', description: 'เดือนที่บันทึก เช่น "2026-05". Default: เดือนปัจจุบัน' },
+                notes: { type: 'STRING', description: 'หมายเหตุเพิ่มเติม' },
+            },
+            required: ['type', 'label', 'amount'],
+        },
+    },
+    // ─── Champ calendar sync ───
+    {
+        name: 'sync_calendar',
+        description: 'ดึง event จาก Google Calendar แล้ว sync ไปที่ Firestore champ-calendar เพื่อแสดงที่ /champ/calendar. ใช้เมื่อ Champ ขอ "ซิงค์ตาราง" หรือ "update ตารางนัด"',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                days: { type: 'NUMBER', description: 'จำนวนวันข้างหน้าที่จะดึง. Default: 14' },
+            },
+            required: [],
+        },
+    },
+    // ─── Champ personal tasks ───
+    {
+        name: 'save_champ_task',
+        description: 'บันทึกงานส่วนตัวของ Champ ลง champ-tasks collection (แสดงที่ /champ/tasks). ใช้เมื่อ Champ บอกว่ามีงานที่ต้องทำ, งานค้าง, หรือ to-do',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                title: { type: 'STRING', description: 'ชื่องาน (Thai or English)' },
+                status: {
+                    type: 'STRING',
+                    enum: ['TODO', 'IN_PROGRESS', 'DONE', 'BLOCKED'],
+                    description: 'สถานะงาน. Default: TODO',
+                },
+                priority: {
+                    type: 'STRING',
+                    enum: ['low', 'normal', 'high', 'urgent'],
+                    description: 'ความสำคัญ. Default: normal',
+                },
+                notes: { type: 'STRING', description: 'รายละเอียดเพิ่มเติม' },
+                due_date: { type: 'STRING', description: 'วันกำหนดส่ง เช่น "2026-06-01" หรือ "สิ้นเดือนนี้"' },
+                tags: {
+                    type: 'ARRAY',
+                    items: { type: 'STRING' },
+                    description: 'Tags เช่น ["up-level", "finance", "admin"]',
+                },
+            },
+            required: ['title'],
+        },
+    },
+    {
+        name: 'update_champ_task',
+        description: 'อัปเดตสถานะหรือรายละเอียดของงานส่วนตัว Champ ใน champ-tasks collection',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                task_id: { type: 'STRING', description: 'Firestore document ID ของงานที่ต้องการอัปเดต' },
+                status: {
+                    type: 'STRING',
+                    enum: ['TODO', 'IN_PROGRESS', 'DONE', 'BLOCKED'],
+                    description: 'สถานะใหม่',
+                },
+                priority: {
+                    type: 'STRING',
+                    enum: ['low', 'normal', 'high', 'urgent'],
+                },
+                notes: { type: 'STRING', description: 'Notes ใหม่' },
+                due_date: { type: 'STRING', description: 'วันกำหนดส่งใหม่' },
+            },
+            required: ['task_id'],
         },
     },
     // ─── Task update ───
