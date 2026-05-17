@@ -4,7 +4,42 @@ import { executeToolCall } from '../tools/handlers.js';
 import { loadHistory, appendMessage } from '../memory/conversation.js';
 import { buildSystemPrompt } from '../persona/vera.js';
 import { loadFactsForPrompt } from '../tools/facts.js';
-export async function handleUserMessage(userId, userText) {
+const TOOL_LABELS = {
+    web_search: '🔍 ค้นข้อมูลจากเว็บ',
+    fetch_url: '🌐 ดึงข้อมูลจาก URL',
+    gmail_list_unread: '📧 ดูอีเมลใหม่',
+    gmail_search: '🔍 ค้นอีเมล',
+    gmail_read: '📧 อ่านอีเมล',
+    gmail_send: '📤 ส่งอีเมล',
+    gmail_create_draft: '📝 สร้าง draft',
+    gmail_list_drafts: '📝 ดู drafts',
+    gmail_mark_read: '📧 mark อ่านแล้ว',
+    gmail_trash: '🗑️ ลบอีเมล',
+    calendar_list_events: '📅 ดูตารางนัด',
+    calendar_create_event: '📅 สร้างนัดหมาย',
+    calendar_update_event: '📅 แก้นัดหมาย',
+    calendar_delete_event: '📅 ลบนัดหมาย',
+    save_idea: '💡 บันทึกไอเดีย',
+    set_reminder: '⏰ ตั้ง reminder',
+    list_reminders: '⏰ ดู reminders',
+    cancel_reminder: '⏰ ยกเลิก reminder',
+    snooze_reminder: '⏰ เลื่อน reminder',
+    log_team_task: '📋 สั่งงานทีม',
+    search_memory: '🧠 ค้นความทรงจำ',
+    save_fact: '🧠 บันทึก fact',
+    recall_facts: '🧠 ดู facts',
+    get_session_context: '💼 ดูสถานะทีม',
+    write_note_to_claude: '📝 ฝากโน้ตให้ Ace',
+    read_ace_notes: '📝 อ่านโน้ตจาก Ace',
+    save_research: '📚 บันทึก research',
+    list_research: '📚 ดูรายการ research',
+    get_research: '📚 ดู research',
+};
+function toolsToLabel(toolNames) {
+    const labels = toolNames.map(n => TOOL_LABELS[n] ?? `🔧 ${n}`);
+    return labels.join(' · ');
+}
+export async function handleUserMessage(userId, userText, onProgress) {
     await appendMessage(userId, 'user', userText);
     const [history, longTermMemory] = await Promise.all([
         loadHistory(userId),
@@ -31,6 +66,10 @@ export async function handleUserMessage(userId, userText) {
         const fnCalls = parts.filter(p => p.functionCall);
         if (fnCalls.length === 0)
             break;
+        const toolNames = fnCalls.map(p => p.functionCall.name);
+        if (onProgress) {
+            await onProgress(`⏳ ${toolsToLabel(toolNames)}...`);
+        }
         const fnResponses = await Promise.all(fnCalls.map(async (p) => {
             const fn = p.functionCall;
             const output = await executeToolCall(fn.name, fn.args, userId);

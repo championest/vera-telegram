@@ -175,8 +175,31 @@ ${ideas || '(ไม่มี)'}
     }
 
     // All other text → Gemini agentic loop
+    // Send an immediate status message so Champ knows Vera received the request
+    let statusMsgId: number | null = null;
     try {
-      const reply = await handleUserMessage(userId, rawText);
+      const sent = await ctx.reply('⏳ กำลังดำเนินการ...');
+      statusMsgId = sent.message_id;
+    } catch { /* non-fatal */ }
+
+    // Keep typing indicator alive every 4s (Telegram drops it after 5s)
+    const typingInterval = setInterval(async () => {
+      try { await ctx.api.sendChatAction(ctx.chat.id, 'typing'); } catch { /* ignore */ }
+    }, 4000);
+
+    const updateStatus = async (text: string) => {
+      if (statusMsgId == null) return;
+      try { await ctx.api.editMessageText(ctx.chat.id, statusMsgId, text); } catch { /* ignore */ }
+    };
+
+    try {
+      const reply = await handleUserMessage(userId, rawText, updateStatus);
+
+      // Remove status message before sending final reply
+      if (statusMsgId != null) {
+        try { await ctx.api.deleteMessage(ctx.chat.id, statusMsgId); } catch { /* ignore */ }
+      }
+
       try {
         await ctx.reply(reply, { parse_mode: 'Markdown' });
       } catch {
@@ -184,7 +207,12 @@ ${ideas || '(ไม่มี)'}
       }
     } catch (err: any) {
       console.error('[Message handler error]', err);
+      if (statusMsgId != null) {
+        try { await ctx.api.deleteMessage(ctx.chat.id, statusMsgId); } catch { /* ignore */ }
+      }
       await ctx.reply(`⚠️ ${err?.message?.slice(0, 200) ?? String(err).slice(0, 200)}`);
+    } finally {
+      clearInterval(typingInterval);
     }
   });
 
