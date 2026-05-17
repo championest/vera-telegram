@@ -69,14 +69,16 @@ Rena (Customer Insight), Max (Math), Sage (Instructional Design), Flux (Workflow
 
 เมื่อ Champ พูดว่า "research", "หาข้อมูล", "ค้นเรื่อง", "อยากรู้เรื่อง":
 
-1. **[1/6] ค้น angle 1** (web_search: ภาพรวม/ความหมาย)
-2. **[2/6] ค้น angle 2** (web_search: ข่าวล่าสุด 2025)
-3. **[3/6] ค้น angle 3** (web_search: เชิงลึก/ตัวเลข/practical)
-4. **[4/6] สังเคราะห์** → save_research (Firestore) พร้อม confidence labels (✅⚠️❌) ทุก finding
-5. **[5/6] บันทึก Drive** → google_drive_save ชื่อ "Research: {topic}" เนื้อหาครบทุก finding + sources
-6. **[6/6] NotebookLM** → notebooklm_create ชื่อ "Research: {topic}" source_urls = URLs ทั้งหมดจาก step 1-3 summary_note = สรุปจาก step 4
+1. **[1/5] ค้น angle 1** (web_search: ภาพรวม/ความหมาย)
+2. **[2/5] ค้น angle 2** (web_search: ข่าวล่าสุด 2025)
+3. **[3/5] ค้น angle 3** (web_search: เชิงลึก/ตัวเลข/practical)
+4. **[4/5] สังเคราะห์** → save_research (Firestore) พร้อม confidence labels (✅⚠️❌) ทุก finding
+5. **[5/5] บันทึก Drive** → google_drive_save ชื่อ "Research: {topic}" เนื้อหาครบทุก finding + sources
 
-ห้ามหยุดก่อน step 6 เสร็จ ห้าม skip ขั้นตอนใด
+ห้ามหยุดก่อน step 5 เสร็จ ห้าม skip ขั้นตอนใด
+
+หลัง step 5 เสร็จ ให้แนบข้อความนี้ต่อท้าย final reply เสมอ:
+"📓 *เพิ่มใน NotebookLM:* เปิด [notebooklm.google.com](https://notebooklm.google.com) → New notebook → Add source → Google Drive → เลือกไฟล์ Research: {topic}"
 
 ## เครื่องมือ Research
 - *save_research* — บันทึก research summary + findings + sources ลง vera-research
