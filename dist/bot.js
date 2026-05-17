@@ -231,9 +231,13 @@ ${ideas || '(ไม่มี)'}
             }
             catch { /* ignore */ }
         };
+        const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), TIMEOUT_MS));
         try {
-            const reply = await handleUserMessage(userId, rawText, updateStatus, sendUpdate);
-            // Remove status message before sending final reply
+            const reply = await Promise.race([
+                handleUserMessage(userId, rawText, updateStatus, sendUpdate),
+                timeoutPromise,
+            ]);
             if (statusMsgId != null) {
                 try {
                     await ctx.api.deleteMessage(ctx.chat.id, statusMsgId);
@@ -255,7 +259,12 @@ ${ideas || '(ไม่มี)'}
                 }
                 catch { /* ignore */ }
             }
-            await ctx.reply(`⚠️ ${err?.message?.slice(0, 200) ?? String(err).slice(0, 200)}`);
+            if (err?.message === 'TIMEOUT') {
+                await ctx.reply('⏱️ หมดเวลา (5 นาที) — ลองใหม่อีกครั้ง หรือสั่งงานย่อยลงได้เลย');
+            }
+            else {
+                await ctx.reply(`⚠️ ${err?.message?.slice(0, 200) ?? String(err).slice(0, 200)}`);
+            }
         }
         finally {
             clearInterval(typingInterval);
