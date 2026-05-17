@@ -32,22 +32,27 @@ export async function notebooklmDebugPage() {
     if (!auth)
         return 'ERROR: Google not connected';
     try {
+        // Step 1: Check token scopes
+        const { token } = await auth.getAccessToken();
+        const infoRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${token}`);
+        const info = await infoRes.json();
+        const scopes = info.scope ?? 'unknown';
+        const hasDrive = scopes.includes('drive');
+        if (!hasDrive) {
+            return `❌ Token missing drive scope\n\nCurrent scopes:\n${scopes.replace(/ /g, '\n')}\n\nต้อง /connect ใหม่แล้วอนุมัติ Google Drive access`;
+        }
+        // Step 2: Try Drive API
         const drive = google.drive({ version: 'v3', auth });
-        // Try creating a test file to verify Drive API + MIME type works
         const file = await drive.files.create({
-            requestBody: {
-                name: '_vera_nbl_test',
-                mimeType: NBL_MIME,
-            },
+            requestBody: { name: '_vera_nbl_test', mimeType: NBL_MIME },
             fields: 'id,mimeType,webViewLink',
         });
-        const result = `✅ Drive API works!\nID: ${file.data.id}\nMIME: ${file.data.mimeType}\nLink: ${file.data.webViewLink}`;
-        // Clean up test file
+        const result = `✅ Drive API works!\nScope has drive: ${hasDrive}\nID: ${file.data.id}\nMIME: ${file.data.mimeType}\nLink: ${file.data.webViewLink}`;
         await drive.files.delete({ fileId: file.data.id });
         return result;
     }
     catch (err) {
-        return `ERROR: ${err.message?.slice(0, 200)}\n\nTrying to list recent files instead...`;
+        return `ERROR: ${err.message?.slice(0, 300)}`;
     }
 }
 export async function notebooklmSaveSession(_cookiesJson) {
