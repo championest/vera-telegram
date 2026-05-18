@@ -1,9 +1,11 @@
 import { db } from '../firebase.js';
 import { handleUserMessage } from './message.js';
+import { config } from '../config.js';
 import admin from 'firebase-admin';
 
 const HQ_CHAT_COLLECTION = 'champ-hq-chat';
-const HQ_USER_ID = 'champ-hq';
+// Use same userId as Telegram so memory is shared across channels
+const HQ_USER_ID = config.TELEGRAM_OWNER_CHAT_ID;
 const POLL_INTERVAL_MS = 3000;
 
 let polling = false;
