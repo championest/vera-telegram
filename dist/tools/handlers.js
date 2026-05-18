@@ -1,6 +1,10 @@
 import { githubListRepos, githubReadFile, githubUpdateFile, githubCreatePr, githubListPrs } from './github.js';
 import { railwayListServices, railwayRedeploy, railwayGetLogs } from './railway.js';
 import { saveIdea } from './save-idea.js';
+import { saveChampTask, updateChampTask } from './save-champ-task.js';
+import { saveVision } from './save-vision.js';
+import { logFinance } from './log-finance.js';
+import { syncCalendar } from './sync-calendar.js';
 import { setReminder } from './set-reminder.js';
 import { listReminders } from './list-reminders.js';
 import { cancelReminder } from './cancel-reminder.js';
@@ -23,6 +27,11 @@ export async function executeToolCall(name, args, userId) {
     try {
         switch (name) {
             case 'save_idea': return await saveIdea(args);
+            case 'save_champ_task': return await saveChampTask(args);
+            case 'update_champ_task': return await updateChampTask(args);
+            case 'save_vision': return await saveVision(args);
+            case 'log_finance': return await logFinance(args);
+            case 'sync_calendar': return await syncCalendar(args);
             case 'set_reminder': return await setReminder(args, userId);
             case 'list_reminders': return await listReminders(args, userId);
             case 'cancel_reminder': return await cancelReminder(args, userId);
