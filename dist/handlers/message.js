@@ -1,4 +1,4 @@
-import { genAI, MODEL_NAME, withRetry } from '../gemini.js';
+import { genAI, MODEL_NAME, withRetry, withFallback } from '../gemini.js';
 import { toolDefinitions } from '../tools/definitions.js';
 import { executeToolCall } from '../tools/handlers.js';
 import { loadHistory, appendMessage } from '../memory/conversation.js';
@@ -79,13 +79,16 @@ export async function handleUserMessage(userId, userText, onProgress, sendUpdate
     }));
     const firstUserIdx = rawHistory.findIndex(m => m.role === 'user');
     const geminiHistory = firstUserIdx > 0 ? rawHistory.slice(firstUserIdx) : rawHistory;
-    const model = genAI.getGenerativeModel({
-        model: MODEL_NAME,
-        systemInstruction: buildSystemPrompt(new Date(), longTermMemory),
-        tools: [{ functionDeclarations: toolDefinitions }],
+    let chat;
+    let result = await withFallback(async (modelName) => {
+        const model = genAI.getGenerativeModel({
+            model: modelName,
+            systemInstruction: buildSystemPrompt(new Date(), longTermMemory),
+            tools: [{ functionDeclarations: toolDefinitions }],
+        });
+        chat = model.startChat({ history: geminiHistory });
+        return chat.sendMessage(userText);
     });
-    const chat = model.startChat({ history: geminiHistory });
-    let result = await withRetry(() => chat.sendMessage(userText));
     const executedTools = [];
     // Agentic tool loop — cap at 12 rounds to prevent runaway loops
     for (let round = 0; round < 12; round++) {

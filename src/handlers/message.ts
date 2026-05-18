@@ -1,4 +1,4 @@
-import { genAI, MODEL_NAME, withRetry } from '../gemini.js';
+import { genAI, MODEL_NAME, withRetry, withFallback } from '../gemini.js';
 import { toolDefinitions } from '../tools/definitions.js';
 import { executeToolCall } from '../tools/handlers.js';
 import { loadHistory, appendMessage } from '../memory/conversation.js';
@@ -93,15 +93,16 @@ export async function handleUserMessage(
   const firstUserIdx = rawHistory.findIndex(m => m.role === 'user');
   const geminiHistory: Content[] = firstUserIdx > 0 ? rawHistory.slice(firstUserIdx) : rawHistory;
 
-  const model = genAI.getGenerativeModel({
-    model: MODEL_NAME,
-    systemInstruction: buildSystemPrompt(new Date(), longTermMemory),
-    tools: [{ functionDeclarations: toolDefinitions }],
+  let chat: ReturnType<ReturnType<typeof genAI.getGenerativeModel>['startChat']>;
+  let result = await withFallback(async (modelName) => {
+    const model = genAI.getGenerativeModel({
+      model: modelName,
+      systemInstruction: buildSystemPrompt(new Date(), longTermMemory),
+      tools: [{ functionDeclarations: toolDefinitions }],
+    });
+    chat = model.startChat({ history: geminiHistory });
+    return chat.sendMessage(userText);
   });
-
-  const chat = model.startChat({ history: geminiHistory });
-
-  let result = await withRetry(() => chat.sendMessage(userText));
 
   const executedTools: string[] = [];
 
