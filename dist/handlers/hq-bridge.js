@@ -1,5 +1,6 @@
 import { db } from '../firebase.js';
 import { handleUserMessage } from './message.js';
+import { HAIKU, SONNET } from '../anthropic-client.js';
 import { config } from '../config.js';
 import admin from 'firebase-admin';
 const HQ_CHAT_COLLECTION = 'champ-hq-chat';
@@ -51,7 +52,7 @@ async function processNextChat() {
     try {
         const response = await handleUserMessage(HQ_USER_ID, content, async (progressText) => {
             await postToHQChat(`⏳ ${progressText}`, { isProgress: true });
-        });
+        }, undefined, HAIKU);
         await postToHQChat(response);
     }
     catch (err) {
@@ -86,7 +87,7 @@ async function processNextDispatch(bot) {
     try {
         const response = await handleUserMessage(HQ_USER_ID, prompt, async (progressText) => {
             await postToHQChat(`⏳ [${member}] ${progressText}`, { isProgress: true, dispatchId: snap.docs[0].id });
-        });
+        }, undefined, SONNET);
         const emoji = MEMBER_EMOJI[member] ?? '🤖';
         const resultContent = `${emoji} **${member.toUpperCase()}** เสร็จแล้ว\n\n${response}`;
         // Post to HQ Vera chat (unread)

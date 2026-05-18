@@ -1,5 +1,6 @@
 import { db } from '../firebase.js';
 import { handleUserMessage } from './message.js';
+import { HAIKU, SONNET } from '../anthropic-client.js';
 import { config } from '../config.js';
 import admin from 'firebase-admin';
 import type { Bot } from 'grammy';
@@ -63,6 +64,8 @@ async function processNextChat(): Promise<void> {
       async (progressText) => {
         await postToHQChat(`⏳ ${progressText}`, { isProgress: true });
       },
+      undefined,
+      HAIKU,  // fast model for chat
     );
     await postToHQChat(response);
   } catch (err) {
@@ -105,6 +108,8 @@ async function processNextDispatch(bot: Bot): Promise<void> {
       async (progressText) => {
         await postToHQChat(`⏳ [${member}] ${progressText}`, { isProgress: true, dispatchId: snap.docs[0].id });
       },
+      undefined,
+      SONNET,  // smart model for dispatch
     );
 
     const emoji = MEMBER_EMOJI[member] ?? '🤖';

@@ -1,81 +1,41 @@
-import { genAI, MODEL_NAME, withRetry, withFallback } from '../gemini.js';
-import { toolDefinitions } from '../tools/definitions.js';
+import Anthropic from '@anthropic-ai/sdk';
+import { anthropic, claudeTools, SONNET, HAIKU } from '../anthropic-client.js';
 import { executeToolCall } from '../tools/handlers.js';
 import { loadHistory, appendMessage } from '../memory/conversation.js';
 import { buildSystemPrompt } from '../persona/vera.js';
 import { loadFactsForPrompt } from '../tools/facts.js';
-import type { Content } from '@google/generative-ai';
 
 const TOOL_LABELS: Record<string, string> = {
-  web_search: '🔍 ค้นข้อมูลจากเว็บ',
-  fetch_url: '🌐 ดึงข้อมูลจาก URL',
+  web_search: '🔍 ค้นข้อมูล',
+  fetch_url: '🌐 ดึง URL',
   gmail_list_unread: '📧 ดูอีเมลใหม่',
   gmail_search: '🔍 ค้นอีเมล',
   gmail_read: '📧 อ่านอีเมล',
   gmail_send: '📤 ส่งอีเมล',
   gmail_create_draft: '📝 สร้าง draft',
-  gmail_list_drafts: '📝 ดู drafts',
-  gmail_mark_read: '📧 mark อ่านแล้ว',
-  gmail_trash: '🗑️ ลบอีเมล',
   calendar_list_events: '📅 ดูตารางนัด',
   calendar_create_event: '📅 สร้างนัดหมาย',
-  calendar_update_event: '📅 แก้นัดหมาย',
-  calendar_delete_event: '📅 ลบนัดหมาย',
+  save_champ_task: '📋 บันทึกงาน',
+  log_finance: '💰 บันทึกการเงิน',
+  quick_sale: '🛒 บันทึกการขาย',
+  add_preorder: '📦 บันทึก pre-order',
+  save_vision: '🎯 บันทึกเป้าหมาย',
   save_idea: '💡 บันทึกไอเดีย',
   set_reminder: '⏰ ตั้ง reminder',
-  list_reminders: '⏰ ดู reminders',
-  cancel_reminder: '⏰ ยกเลิก reminder',
-  snooze_reminder: '⏰ เลื่อน reminder',
   log_team_task: '📋 สั่งงานทีม',
   search_memory: '🧠 ค้นความทรงจำ',
   save_fact: '🧠 บันทึก fact',
-  recall_facts: '🧠 ดู facts',
-  get_session_context: '💼 ดูสถานะทีม',
-  write_note_to_claude: '📝 ฝากโน้ตให้ Ace',
-  read_ace_notes: '📝 อ่านโน้ตจาก Ace',
   save_research: '📚 บันทึก research',
-  list_research: '📚 ดูรายการ research',
-  get_research: '📚 ดู research',
-  google_drive_save: '💾 บันทึก Google Drive',
+  google_drive_save: '💾 บันทึก Drive',
   notebooklm_create: '📓 สร้าง NotebookLM',
 };
-
-/** Tools that warrant a sendUpdate notification after completion */
-const MAJOR_TOOLS = new Set(['web_search', 'save_research', 'google_drive_save', 'notebooklm_create']);
-
-function buildUpdateMessage(toolName: string, result: string): string | null {
-  switch (toolName) {
-    case 'web_search':
-      return '✅ ค้นเสร็จ — พบข้อมูล';
-    case 'save_research': {
-      // Try to extract ID from result string like "ID: abc123"
-      const idMatch = result.match(/ID:\s*(\S+)/);
-      return idMatch ? `✅ บันทึก Firestore · ID: ${idMatch[1]}` : '✅ บันทึก Firestore';
-    }
-    case 'google_drive_save': {
-      // Try to extract link from result
-      const linkMatch = result.match(/ลิงก์:\s*(https?:\/\/\S+)/);
-      return linkMatch ? `✅ Drive บันทึกแล้ว · ${linkMatch[1]}` : '✅ Drive บันทึกแล้ว';
-    }
-    case 'notebooklm_create': {
-      const linkMatch = result.match(/ลิงก์:\s*(https?:\/\/\S+)/);
-      return linkMatch ? `✅ NotebookLM พร้อม · ${linkMatch[1]}` : '✅ NotebookLM พร้อม';
-    }
-    default:
-      return null;
-  }
-}
-
-function toolsToLabel(toolNames: string[]): string {
-  const labels = toolNames.map(n => TOOL_LABELS[n] ?? `🔧 ${n}`);
-  return labels.join(' · ');
-}
 
 export async function handleUserMessage(
   userId: string,
   userText: string,
   onProgress?: (text: string) => Promise<void>,
   sendUpdate?: (text: string) => Promise<void>,
+  model: string = SONNET,
 ): Promise<string> {
   await appendMessage(userId, 'user', userText);
 
@@ -84,89 +44,88 @@ export async function handleUserMessage(
     loadFactsForPrompt(userId),
   ]);
 
-  // Convert history to Gemini Content format (exclude the last user message — sent via sendMessage)
-  // Gemini requires history to start with 'user' role — drop leading model messages if history is corrupted
-  const rawHistory = history.slice(0, -1).map(m => ({
-    role: m.role === 'user' ? 'user' : 'model',
-    parts: [{ text: m.content }],
-  }));
-  const firstUserIdx = rawHistory.findIndex(m => m.role === 'user');
-  const geminiHistory: Content[] = firstUserIdx > 0 ? rawHistory.slice(firstUserIdx) : rawHistory;
+  const systemPrompt = buildSystemPrompt(new Date(), longTermMemory);
 
-  let chat: ReturnType<ReturnType<typeof genAI.getGenerativeModel>['startChat']>;
-  let result = await withFallback(async (modelName) => {
-    const model = genAI.getGenerativeModel({
-      model: modelName,
-      systemInstruction: buildSystemPrompt(new Date(), longTermMemory),
-      tools: [{ functionDeclarations: toolDefinitions }],
-    });
-    chat = model.startChat({ history: geminiHistory });
-    return chat.sendMessage(userText);
-  });
+  // Build messages from history (exclude the last user message — we'll pass it separately)
+  const historyMessages: Anthropic.MessageParam[] = history.slice(0, -1).map(m => ({
+    role: m.role === 'user' ? 'user' : 'assistant',
+    content: m.content,
+  }));
+
+  // Current user message
+  const messages: Anthropic.MessageParam[] = [
+    ...historyMessages,
+    { role: 'user', content: userText },
+  ];
 
   const executedTools: string[] = [];
 
-  // Agentic tool loop — cap at 12 rounds to prevent runaway loops
+  // Agentic loop — cap at 12 rounds
   for (let round = 0; round < 12; round++) {
-    const parts = result.response.candidates?.[0]?.content.parts ?? [];
-    const fnCalls = parts.filter(p => p.functionCall);
+    const response = await anthropic.messages.create({
+      model,
+      max_tokens: 8096,
+      system: systemPrompt,
+      tools: claudeTools,
+      messages,
+    });
 
-    if (fnCalls.length === 0) break;
-
-    const toolNames = fnCalls.map(p => p.functionCall!.name);
-    executedTools.push(...toolNames);
-    if (onProgress) {
-      await onProgress(`⏳ ${toolsToLabel(toolNames)}...`);
+    if (response.stop_reason === 'end_turn' || response.stop_reason === 'stop_sequence') {
+      const textBlock = response.content.find(b => b.type === 'text');
+      const text = textBlock?.type === 'text' ? textBlock.text : '';
+      const finalText = text?.trim() ||
+        (executedTools.length > 0
+          ? `✅ เสร็จแล้ว\nดำเนินการ: ${executedTools.map(t => TOOL_LABELS[t] ?? t).join(' → ')}`
+          : '✅ ดำเนินการเสร็จแล้ว');
+      await appendMessage(userId, 'assistant', finalText);
+      return finalText;
     }
 
-    const fnResponses = await Promise.all(
-      fnCalls.map(async p => {
-        const fn = p.functionCall!;
-        const output = await executeToolCall(fn.name, fn.args as Record<string, unknown>, userId);
+    if (response.stop_reason !== 'tool_use') {
+      const textBlock = response.content.find(b => b.type === 'text');
+      const text = textBlock?.type === 'text' ? textBlock.text : '✅ เสร็จแล้ว';
+      await appendMessage(userId, 'assistant', text);
+      return text;
+    }
 
-        // Send a NEW message for major tool completions
-        if (sendUpdate && MAJOR_TOOLS.has(fn.name)) {
-          const updateMsg = buildUpdateMessage(fn.name, output);
-          if (updateMsg) {
-            try { await sendUpdate(updateMsg); } catch { /* non-fatal */ }
-          }
+    // Tool use round
+    const toolUseBlocks = response.content.filter(b => b.type === 'tool_use') as Anthropic.ToolUseBlock[];
+    const toolNames = toolUseBlocks.map(b => b.name);
+    executedTools.push(...toolNames);
+
+    if (onProgress) {
+      const labels = toolNames.map(n => TOOL_LABELS[n] ?? `🔧 ${n}`).join(' · ');
+      await onProgress(`⏳ ${labels}...`);
+    }
+
+    // Append assistant turn with tool_use blocks
+    messages.push({ role: 'assistant', content: response.content });
+
+    // Execute all tool calls in parallel
+    const toolResults = await Promise.all(
+      toolUseBlocks.map(async block => {
+        const output = await executeToolCall(block.name, block.input as Record<string, unknown>, userId);
+
+        if (sendUpdate && ['save_research', 'google_drive_save', 'notebooklm_create'].includes(block.name)) {
+          try { await sendUpdate(`✅ ${TOOL_LABELS[block.name] ?? block.name} เสร็จ`); } catch { /* non-fatal */ }
         }
 
         return {
-          functionResponse: {
-            name: fn.name,
-            response: { result: output },
-          },
+          type: 'tool_result' as const,
+          tool_use_id: block.id,
+          content: output,
         };
       })
     );
 
-    result = await withRetry(() => chat.sendMessage(fnResponses));
+    // Append user turn with tool results
+    messages.push({ role: 'user', content: toolResults });
   }
 
-  // .text() throws if response is blocked or has no text part — handle gracefully
-  let text: string;
-  try {
-    text = result.response.text();
-  } catch {
-    const finishReason = result.response.candidates?.[0]?.finishReason;
-    if (finishReason === 'SAFETY' || finishReason === 'RECITATION') {
-      text = 'Gemini บล็อก response นี้ค่ะ (safety filter) — ลองถามใหม่ด้วยคำอื่นได้เลย';
-    } else {
-      text = 'ไม่สามารถรับ response จาก Gemini ได้ค่ะ — กรุณาลองใหม่อีกครั้ง';
-    }
-  }
-  if (!text?.trim()) {
-    if (executedTools.length > 0) {
-      const summary = executedTools.map(t => TOOL_LABELS[t] ?? t).join(' → ');
-      text = `✅ เสร็จแล้วค่ะ\nดำเนินการ: ${summary}`;
-    } else {
-      text = '✅ ดำเนินการเสร็จแล้วค่ะ';
-    }
-  }
-
-  await appendMessage(userId, 'assistant', text);
-  return text;
+  // Exceeded max rounds
+  const fallback = '⚠️ ดำเนินการเสร็จแล้ว (ถึง limit การทำงาน)';
+  await appendMessage(userId, 'assistant', fallback);
+  return fallback;
 }
 
 export async function handleMediaMessage(
@@ -176,47 +135,31 @@ export async function handleMediaMessage(
   caption: string | null
 ): Promise<string> {
   const [longTermMemory] = await Promise.all([loadFactsForPrompt(userId)]);
+  const systemPrompt = buildSystemPrompt(new Date(), longTermMemory);
 
-  const isAudio = mimeType.startsWith('audio/');
-  const contextHint = isAudio
-    ? 'คุณ Champ ส่ง voice message มา — transcribe แล้วตอบสนองตามที่ขอ'
-    : `คุณ Champ ส่งรูปมา${caption ? ` พร้อม caption: "${caption}"` : ''} — วิเคราะห์และช่วยเหลือตามที่เห็น`;
+  await appendMessage(userId, 'user', caption || '[ส่งไฟล์มา]');
 
-  const model = genAI.getGenerativeModel({
-    model: MODEL_NAME,
-    systemInstruction: buildSystemPrompt(new Date(), longTermMemory),
-    tools: [{ functionDeclarations: toolDefinitions }],
+  const base64 = buffer.toString('base64');
+  const mediaType = mimeType.startsWith('image/') ? mimeType : 'image/jpeg';
+
+  const response = await anthropic.messages.create({
+    model: SONNET,
+    max_tokens: 4096,
+    system: systemPrompt,
+    messages: [{
+      role: 'user',
+      content: [
+        {
+          type: 'image',
+          source: { type: 'base64', media_type: mediaType as any, data: base64 },
+        },
+        ...(caption ? [{ type: 'text' as const, text: caption }] : []),
+      ],
+    }],
   });
 
-  let result = await model.generateContent([
-    { inlineData: { data: buffer.toString('base64'), mimeType } },
-    { text: contextHint },
-  ]);
-
-  // Allow tool calls from media messages too
-  while (true) {
-    const parts = result.response.candidates?.[0]?.content.parts ?? [];
-    const fnCalls = parts.filter((p: any) => p.functionCall);
-    if (fnCalls.length === 0) break;
-
-    const fnResponses = await Promise.all(
-      fnCalls.map(async (p: any) => {
-        const fn = p.functionCall!;
-        const output = await executeToolCall(fn.name, fn.args as Record<string, unknown>, userId);
-        return { functionResponse: { name: fn.name, response: { result: output } } };
-      })
-    );
-    result = await (model as any).generateContent([
-      { inlineData: { data: buffer.toString('base64'), mimeType } },
-      { text: contextHint },
-      ...fnResponses,
-    ]);
-    break; // single tool pass for media
-  }
-
-  const text = result.response.text();
-  const memLabel = isAudio ? '[Voice message]' : `[Photo${caption ? `: ${caption}` : ''}]`;
-  await appendMessage(userId, 'user', memLabel);
+  const textBlock = response.content.find(b => b.type === 'text');
+  const text = textBlock?.type === 'text' ? textBlock.text : '✅ รับไฟล์แล้ว';
   await appendMessage(userId, 'assistant', text);
   return text;
 }
