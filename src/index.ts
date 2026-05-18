@@ -11,9 +11,9 @@ async function main() {
   console.log('Starting Vera...');
 
   createHttpServer();
-  startHQBridge();
 
   const bot = createBot();
+  startHQBridge(bot);
   startReminderScheduler(bot);
   startMorningBriefScheduler(bot);
   startStuckTaskChecker(bot);
