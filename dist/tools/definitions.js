@@ -637,4 +637,35 @@ export const toolDefinitions = [
             required: [],
         },
     },
+    // ─── Champ HQ store tools ───
+    {
+        name: 'add_preorder',
+        description: 'บันทึก pre-order ลูกค้าร้านการ์ด Up Level Academy ลง champ-preorders collection (แสดงที่ /champ/preorders). ใช้เมื่อ Champ บอกว่ามีลูกค้าสั่งการ์ดล่วงหน้า',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                customer_name: { type: 'STRING', description: 'ชื่อลูกค้า' },
+                phone: { type: 'STRING', description: 'เบอร์โทรลูกค้า (optional)' },
+                items: { type: 'STRING', description: 'รายการสินค้าที่สั่ง เช่น "Pokemon SV9 Booster Box x3"' },
+                deposit_paid: { type: 'NUMBER', description: 'เงินมัดจำที่รับแล้ว (บาท)' },
+                total_price: { type: 'NUMBER', description: 'ราคารวมทั้งหมด (บาท)' },
+                expected_date: { type: 'STRING', description: 'วันที่คาดว่าของจะมาถึง เช่น "2026-06-15"' },
+                notes: { type: 'STRING', description: 'หมายเหตุเพิ่มเติม' },
+            },
+            required: ['customer_name', 'items'],
+        },
+    },
+    {
+        name: 'quick_sale',
+        description: 'บันทึกการขายสินค้าจาก Inventory — ลด qty ใน champ-inventory และ auto-log รายรับใน champ-finance. ใช้เมื่อ Champ บอกว่าขายสินค้าได้',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                item_name: { type: 'STRING', description: 'ชื่อสินค้าที่ขาย (หรือบางส่วนของชื่อ)' },
+                qty: { type: 'NUMBER', description: 'จำนวนที่ขาย. Default: 1' },
+                price: { type: 'NUMBER', description: 'ราคาขาย/ชิ้น (บาท). ถ้าไม่ระบุ ใช้ราคาจาก Inventory' },
+            },
+            required: ['item_name'],
+        },
+    },
 ];

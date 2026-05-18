@@ -4,6 +4,8 @@ import { saveIdea } from './save-idea.js';
 import { saveChampTask, updateChampTask } from './save-champ-task.js';
 import { saveVision } from './save-vision.js';
 import { logFinance } from './log-finance.js';
+import { addPreorder } from './add-preorder.js';
+import { quickSale } from './quick-sale.js';
 import { syncCalendar } from './sync-calendar.js';
 import { setReminder } from './set-reminder.js';
 import { listReminders } from './list-reminders.js';
@@ -36,6 +38,8 @@ export async function executeToolCall(
       case 'update_champ_task':    return await updateChampTask(args);
       case 'save_vision':          return await saveVision(args);
       case 'log_finance':          return await logFinance(args);
+      case 'add_preorder':         return await addPreorder(args);
+      case 'quick_sale':           return await quickSale(args);
       case 'sync_calendar':        return await syncCalendar(args);
       case 'set_reminder':         return await setReminder(args, userId);
       case 'list_reminders':       return await listReminders(args, userId);
