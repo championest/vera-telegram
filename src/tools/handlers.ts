@@ -19,6 +19,7 @@ import { calendarListEvents } from './calendar-list.js';
 import { calendarCreateEvent } from './calendar-create.js';
 import { calendarUpdateEvent, calendarDeleteEvent } from './calendar-update.js';
 import { getSessionContext, writeNoteToClaude, readAceNotes } from './session-bridge.js';
+import { saveWorkContext, getVeraConversations } from './save-work-context.js';
 import { saveFact, recallFacts } from './facts.js';
 import { webSearch, fetchUrl } from './web-search.js';
 import { gmailCreateDraft, gmailListDrafts } from './gmail-draft.js';
@@ -60,6 +61,8 @@ export async function executeToolCall(
       case 'get_session_context':    return await getSessionContext(args);
       case 'write_note_to_claude':   return await writeNoteToClaude(args);
       case 'read_ace_notes':         return await readAceNotes(args);
+      case 'save_work_context':      return await saveWorkContext(args);
+      case 'get_vera_conversations': return await getVeraConversations(args);
       case 'save_fact':              return await saveFact(args, userId);
       case 'recall_facts':           return await recallFacts(args, userId);
       case 'save_research':          return await saveResearch(args);

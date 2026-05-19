@@ -103,6 +103,24 @@ export const toolDefinitions: FunctionDeclaration[] = [
       required: ['note'],
     },
   },
+  {
+    name: 'save_work_context',
+    description: 'บันทึก work context / สรุปการคุยเรื่องงาน ลง vera-conversations เพื่อให้ Ace ใน Claude Code ดึงมาทำงานต่อได้ ใช้เมื่อ Champ คุยเรื่องโปรเจค, งานค้าง, แผน, หรือ decision สำคัญ',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        topic: { type: 'STRING' as any, description: 'หัวข้อ เช่น "up-level-guild login bug", "TPT store launch plan"' },
+        summary: { type: 'STRING' as any, description: 'สรุปสั้นๆ ว่าคุยอะไร ตัดสินใจอะไร' },
+        action_items: {
+          type: 'ARRAY' as any,
+          items: { type: 'STRING' as any },
+          description: 'งานที่ต้องทำต่อ เช่น ["fix login page", "deploy to Vercel"]',
+        },
+        project: { type: 'STRING' as any, description: 'ชื่อโปรเจค เช่น "up-level-guild-members-web"' },
+      },
+      required: ['topic', 'summary'],
+    },
+  },
 
   {
     name: 'save_idea',
