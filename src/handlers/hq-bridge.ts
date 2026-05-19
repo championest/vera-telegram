@@ -8,7 +8,7 @@ import type { Bot } from 'grammy';
 const HQ_CHAT_COLLECTION = 'champ-hq-chat';
 const WORKFLOW_COLLECTION = 'team-workflow';
 const HQ_USER_ID = config.TELEGRAM_OWNER_CHAT_ID;
-const POLL_INTERVAL_MS = 15000; // 15s — reduces Firestore reads from ~57k/day to ~11k/day
+const POLL_INTERVAL_MS = 3000;
 
 const MEMBER_ROLES: Record<string, string> = {
   ace:   'Chief of Staff — วางแผน ตัดสินใจ ประสานงาน',
