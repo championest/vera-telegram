@@ -25,6 +25,7 @@ import { webSearch, fetchUrl } from './web-search.js';
 import { gmailCreateDraft, gmailListDrafts } from './gmail-draft.js';
 import { saveResearch, listResearch, getResearch } from './save-research.js';
 import { googleDriveSave } from './google-drive.js';
+import { readGoogleDoc, readGoogleSheet } from './read-google-link.js';
 import { notebooklmCreate } from './notebooklm.js';
 
 export async function executeToolCall(
@@ -73,6 +74,8 @@ export async function executeToolCall(
       case 'web_search':             return await webSearch(args);
       case 'fetch_url':              return await fetchUrl(args);
       case 'google_drive_save':      return await googleDriveSave(args);
+      case 'read_google_doc':        return await readGoogleDoc(args);
+      case 'read_google_sheet':      return await readGoogleSheet(args);
       case 'notebooklm_create':      return await notebooklmCreate(args);
       case 'github_list_repos':      return await githubListRepos(args);
       case 'github_read_file':       return await githubReadFile(args);

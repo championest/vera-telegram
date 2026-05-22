@@ -1,0 +1,154 @@
+import { db } from './firebase.js';
+import { runClaudeLoop } from './claude-loop.js';
+import { runGeminiLoop, GEMINI_PRIMARY, GEMINI_FALLBACK } from './gemini-loop.js';
+import { appendMessage } from './memory/conversation.js';
+export const DEFAULT_PROVIDER = 'auto';
+const PREFS_COLLECTION = 'vera-prefs';
+const prefCache = new Map();
+const PREF_TTL_MS = 60_000;
+export async function getUserProvider(userId) {
+    const cached = prefCache.get(userId);
+    if (cached && cached.expiresAt > Date.now())
+        return cached.value;
+    try {
+        const snap = await db.collection(PREFS_COLLECTION).doc(userId).get();
+        const stored = snap.exists ? snap.data()?.['provider'] : undefined;
+        const value = stored === 'claude' || stored === 'gemini' || stored === 'auto' ? stored : DEFAULT_PROVIDER;
+        prefCache.set(userId, { value, expiresAt: Date.now() + PREF_TTL_MS });
+        return value;
+    }
+    catch (err) {
+        console.warn('[llm-router] getUserProvider failed', err);
+        return DEFAULT_PROVIDER;
+    }
+}
+export async function setUserProvider(userId, provider) {
+    await db.collection(PREFS_COLLECTION).doc(userId).set({ provider, updatedAt: new Date() }, { merge: true });
+    prefCache.set(userId, { value: provider, expiresAt: Date.now() + PREF_TTL_MS });
+}
+function isOverloaded(err) {
+    const msg = String(err?.message ?? err ?? '');
+    const status = err?.status ?? err?.statusCode;
+    if (typeof status === 'number' && (status === 429 || status === 503 || status === 529 || status >= 500))
+        return true;
+    return /overload|rate.?limit|503|529|service unavailable|temporarily|timeout|ETIMEDOUT|ECONNRESET/i.test(msg);
+}
+/** Convert NormalizedFile[] to Anthropic content blocks */
+function filesToClaudeBlocks(files) {
+    const blocks = [];
+    for (const f of files) {
+        const mime = f.mimeType;
+        if (mime.startsWith('image/')) {
+            blocks.push({
+                type: 'image',
+                source: { type: 'base64', media_type: mime, data: f.buffer.toString('base64') },
+            });
+        }
+        else if (mime === 'application/pdf') {
+            blocks.push({
+                type: 'document',
+                source: { type: 'base64', media_type: 'application/pdf', data: f.buffer.toString('base64') },
+            });
+        }
+        else {
+            // Plain text fallback — extracted text passed via filename context
+            const text = f.buffer.toString('utf-8');
+            blocks.push({
+                type: 'text',
+                text: `<file name="${f.filename ?? 'attached'}" type="${mime}">\n${text}\n</file>`,
+            });
+        }
+    }
+    return blocks;
+}
+/** Convert NormalizedFile[] to Gemini Part[] */
+function filesToGeminiParts(files) {
+    const parts = [];
+    for (const f of files) {
+        const mime = f.mimeType;
+        if (mime.startsWith('image/') || mime === 'application/pdf') {
+            parts.push({
+                inlineData: {
+                    mimeType: mime,
+                    data: f.buffer.toString('base64'),
+                },
+            });
+        }
+        else {
+            const text = f.buffer.toString('utf-8');
+            parts.push({
+                text: `<file name="${f.filename ?? 'attached'}" type="${mime}">\n${text}\n</file>`,
+            });
+        }
+    }
+    return parts;
+}
+/**
+ * Main entry — picks provider, executes agentic loop, falls back to the other on overload.
+ *
+ * - 'claude' : Claude only (no fallback)
+ * - 'gemini' : Gemini only (no fallback)
+ * - 'auto'   : Claude primary, fall back to Gemini on overload/5xx
+ */
+export async function runAgent(opts) {
+    const provider = opts.provider ?? await getUserProvider(opts.userId);
+    const files = opts.files ?? [];
+    // Persist user turn ONCE here so both loops see it in history
+    await appendMessage(opts.userId, 'user', opts.userText || (files.length ? '[ส่งไฟล์มา]' : ''));
+    const runClaude = () => runClaudeLoop({
+        userId: opts.userId,
+        userText: opts.userText,
+        onProgress: opts.onProgress,
+        sendUpdate: opts.sendUpdate,
+        attachments: files.length ? filesToClaudeBlocks(files) : undefined,
+        skipAppend: true,
+        model: opts.claudeModel,
+    });
+    const runGemini = (model) => runGeminiLoop({
+        userId: opts.userId,
+        userText: opts.userText,
+        onProgress: opts.onProgress,
+        sendUpdate: opts.sendUpdate,
+        attachments: files.length ? filesToGeminiParts(files) : undefined,
+        skipAppend: true,
+    }, model);
+    if (provider === 'claude')
+        return runClaude();
+    if (provider === 'gemini') {
+        try {
+            return await runGemini(GEMINI_PRIMARY);
+        }
+        catch (err) {
+            if (isOverloaded(err)) {
+                console.warn('[llm-router] Gemini primary failed, switching to fallback model');
+                return await runGemini(GEMINI_FALLBACK);
+            }
+            throw err;
+        }
+    }
+    // auto: Claude → Gemini
+    try {
+        return await runClaude();
+    }
+    catch (err) {
+        if (!isOverloaded(err))
+            throw err;
+        console.warn('[llm-router] Claude overloaded, falling back to Gemini');
+        if (opts.sendUpdate) {
+            try {
+                await opts.sendUpdate('⚙️ Claude overloaded — switching to Gemini...');
+            }
+            catch { /* ignore */ }
+        }
+        try {
+            return await runGemini(GEMINI_PRIMARY);
+        }
+        catch (err2) {
+            if (isOverloaded(err2)) {
+                console.warn('[llm-router] Gemini primary also failed, trying fallback model');
+                return await runGemini(GEMINI_FALLBACK);
+            }
+            throw err2;
+        }
+    }
+}

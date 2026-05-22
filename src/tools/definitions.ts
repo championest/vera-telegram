@@ -403,6 +403,30 @@ export const toolDefinitions: FunctionDeclaration[] = [
       required: ['url'],
     },
   },
+  // ─── Google Docs/Sheets reader (via URL) ───
+  {
+    name: 'read_google_doc',
+    description: 'อ่านเนื้อหา Google Doc จาก URL ที่ Champ ส่งมา ใช้เมื่อ Champ ส่งลิงก์ docs.google.com/document/... หรือ drive link. รองรับทั้งเอกสารส่วนตัวของ Champ (ใช้ OAuth) และเอกสาร public.',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        url: { type: 'STRING' as any, description: 'URL เต็มของ Google Doc' },
+      },
+      required: ['url'],
+    },
+  },
+  {
+    name: 'read_google_sheet',
+    description: 'อ่านข้อมูล Google Sheet จาก URL ที่ Champ ส่งมา ใช้เมื่อ Champ ส่งลิงก์ docs.google.com/spreadsheets/... รองรับทั้ง sheet ส่วนตัวของ Champ และ sheet public ส่งเป็น CSV ทุก sheet.',
+    parameters: {
+      type: 'OBJECT' as any,
+      properties: {
+        url: { type: 'STRING' as any, description: 'URL เต็มของ Google Sheet (สามารถมี #gid=... เพื่อระบุแท็บ)' },
+        range: { type: 'STRING' as any, description: 'Optional A1 range เช่น "Sheet1!A1:D100". ไม่ระบุ = อ่านทุก sheet ทั้งแท็บ' },
+      },
+      required: ['url'],
+    },
+  },
   // ─── Google Drive ───
   {
     name: 'google_drive_save',

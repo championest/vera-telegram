@@ -19,11 +19,13 @@ import { calendarListEvents } from './calendar-list.js';
 import { calendarCreateEvent } from './calendar-create.js';
 import { calendarUpdateEvent, calendarDeleteEvent } from './calendar-update.js';
 import { getSessionContext, writeNoteToClaude, readAceNotes } from './session-bridge.js';
+import { saveWorkContext, getVeraConversations } from './save-work-context.js';
 import { saveFact, recallFacts } from './facts.js';
 import { webSearch, fetchUrl } from './web-search.js';
 import { gmailCreateDraft, gmailListDrafts } from './gmail-draft.js';
 import { saveResearch, listResearch, getResearch } from './save-research.js';
 import { googleDriveSave } from './google-drive.js';
+import { readGoogleDoc, readGoogleSheet } from './read-google-link.js';
 import { notebooklmCreate } from './notebooklm.js';
 export async function executeToolCall(name, args, userId) {
     try {
@@ -55,6 +57,8 @@ export async function executeToolCall(name, args, userId) {
             case 'get_session_context': return await getSessionContext(args);
             case 'write_note_to_claude': return await writeNoteToClaude(args);
             case 'read_ace_notes': return await readAceNotes(args);
+            case 'save_work_context': return await saveWorkContext(args);
+            case 'get_vera_conversations': return await getVeraConversations(args);
             case 'save_fact': return await saveFact(args, userId);
             case 'recall_facts': return await recallFacts(args, userId);
             case 'save_research': return await saveResearch(args);
@@ -65,6 +69,8 @@ export async function executeToolCall(name, args, userId) {
             case 'web_search': return await webSearch(args);
             case 'fetch_url': return await fetchUrl(args);
             case 'google_drive_save': return await googleDriveSave(args);
+            case 'read_google_doc': return await readGoogleDoc(args);
+            case 'read_google_sheet': return await readGoogleSheet(args);
             case 'notebooklm_create': return await notebooklmCreate(args);
             case 'github_list_repos': return await githubListRepos(args);
             case 'github_read_file': return await githubReadFile(args);

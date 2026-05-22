@@ -102,6 +102,24 @@ export const toolDefinitions = [
         },
     },
     {
+        name: 'save_work_context',
+        description: 'บันทึก work context / สรุปการคุยเรื่องงาน ลง vera-conversations เพื่อให้ Ace ใน Claude Code ดึงมาทำงานต่อได้ ใช้เมื่อ Champ คุยเรื่องโปรเจค, งานค้าง, แผน, หรือ decision สำคัญ',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                topic: { type: 'STRING', description: 'หัวข้อ เช่น "up-level-guild login bug", "TPT store launch plan"' },
+                summary: { type: 'STRING', description: 'สรุปสั้นๆ ว่าคุยอะไร ตัดสินใจอะไร' },
+                action_items: {
+                    type: 'ARRAY',
+                    items: { type: 'STRING' },
+                    description: 'งานที่ต้องทำต่อ เช่น ["fix login page", "deploy to Vercel"]',
+                },
+                project: { type: 'STRING', description: 'ชื่อโปรเจค เช่น "up-level-guild-members-web"' },
+            },
+            required: ['topic', 'summary'],
+        },
+    },
+    {
         name: 'save_idea',
         description: 'Save an idea from Champ to Firestore for future reference.',
         parameters: {
@@ -378,6 +396,30 @@ export const toolDefinitions = [
             type: 'OBJECT',
             properties: {
                 url: { type: 'STRING', description: 'Full URL to fetch and extract content from' },
+            },
+            required: ['url'],
+        },
+    },
+    // ─── Google Docs/Sheets reader (via URL) ───
+    {
+        name: 'read_google_doc',
+        description: 'อ่านเนื้อหา Google Doc จาก URL ที่ Champ ส่งมา ใช้เมื่อ Champ ส่งลิงก์ docs.google.com/document/... หรือ drive link. รองรับทั้งเอกสารส่วนตัวของ Champ (ใช้ OAuth) และเอกสาร public.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                url: { type: 'STRING', description: 'URL เต็มของ Google Doc' },
+            },
+            required: ['url'],
+        },
+    },
+    {
+        name: 'read_google_sheet',
+        description: 'อ่านข้อมูล Google Sheet จาก URL ที่ Champ ส่งมา ใช้เมื่อ Champ ส่งลิงก์ docs.google.com/spreadsheets/... รองรับทั้ง sheet ส่วนตัวของ Champ และ sheet public ส่งเป็น CSV ทุก sheet.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                url: { type: 'STRING', description: 'URL เต็มของ Google Sheet (สามารถมี #gid=... เพื่อระบุแท็บ)' },
+                range: { type: 'STRING', description: 'Optional A1 range เช่น "Sheet1!A1:D100". ไม่ระบุ = อ่านทุก sheet ทั้งแท็บ' },
             },
             required: ['url'],
         },

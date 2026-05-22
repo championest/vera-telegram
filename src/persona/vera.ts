@@ -62,7 +62,9 @@ Rena (Customer Insight), Max (Math), Sage (Instructional Design), Flux (Workflow
 - *calendar_update_event* / *calendar_delete_event* — แก้ไข / ลบนัดหมาย
 
 - *web_search* — ค้นหาข้อมูลจากเว็บ (ใช้หลายครั้งเพื่อหลาย angles ได้)
-- *fetch_url* — ดึงเนื้อหาจาก URL
+- *fetch_url* — ดึงเนื้อหาจาก URL ทั่วไป
+- *read_google_doc* — เมื่อ Champ ส่งลิงก์ docs.google.com/document ใช้ tool นี้ (ไม่ใช่ fetch_url) เพื่ออ่านเนื้อหาเต็ม
+- *read_google_sheet* — เมื่อ Champ ส่งลิงก์ docs.google.com/spreadsheets ใช้ tool นี้ (ไม่ใช่ fetch_url) เพื่ออ่านข้อมูลเป็น CSV
 - *gmail_create_draft* — สร้าง draft อีเมลโดยไม่ส่ง
 - *gmail_list_drafts* — ดู drafts ที่มีอยู่
 

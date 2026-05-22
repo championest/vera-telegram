@@ -1,7 +1,7 @@
 import { Bot, GrammyError, HttpError } from 'grammy';
 import { config } from './config.js';
 import { handleUserMessage, handleMediaMessage } from './handlers/message.js';
-import { handleStart, handleReminders, handleIdeas, handleTasks, handleHelp, handleConnect, handleCode, handleStatus, handleMenu } from './handlers/command.js';
+import { handleStart, handleReminders, handleIdeas, handleTasks, handleHelp, handleConnect, handleCode, handleStatus, handleMenu, handleModel } from './handlers/command.js';
 import { handleReminderCallback } from './scheduler/reminders.js';
 import { sendMorningBrief } from './scheduler/morning-brief.js';
 import { db } from './firebase.js';
@@ -32,6 +32,7 @@ export function createBot(): Bot {
   bot.command('help', handleHelp);
   bot.command('status', handleStatus);
   bot.command('menu', handleMenu);
+  bot.command('model', handleModel);
   bot.command('brief', async (ctx) => {
     await ctx.api.sendChatAction(ctx.chat!.id, 'typing');
     try { await sendMorningBrief(bot); }
@@ -152,11 +153,11 @@ ${ideas || '(ไม่มี)'}
     }
   });
 
-  async function sendMediaReply(ctx: any, buffer: Buffer, mimeType: string, caption: string | null) {
+  async function sendMediaReply(ctx: any, buffer: Buffer, mimeType: string, caption: string | null, filename?: string) {
     const userId = String(ctx.from.id);
     await ctx.api.sendChatAction(ctx.chat.id, 'typing');
     try {
-      const reply = await handleMediaMessage(userId, buffer, mimeType, caption);
+      const reply = await handleMediaMessage(userId, buffer, mimeType, caption, filename);
       try { await ctx.reply(reply, { parse_mode: 'Markdown' }); }
       catch { await ctx.reply(reply); }
     } catch (err) {
@@ -191,13 +192,40 @@ ${ideas || '(ไม่มี)'}
 
   bot.on('message:document', async (ctx) => {
     const doc = ctx.message.document;
-    const mime = doc.mime_type ?? '';
-    if (!mime.startsWith('image/') && !mime.startsWith('audio/')) {
-      await ctx.reply('ตอนนี้รองรับแค่รูปภาพและไฟล์เสียงค่ะ');
+    const mime = doc.mime_type ?? 'application/octet-stream';
+    const filename = doc.file_name ?? undefined;
+    const caption = ctx.message.caption ?? null;
+
+    // Audio documents → existing media flow
+    if (mime.startsWith('audio/')) {
+      const buf = await downloadTelegramFile(ctx, doc.file_id);
+      await sendMediaReply(ctx, buf, mime, caption, filename);
       return;
     }
+
+    // Image documents → existing media flow
+    if (mime.startsWith('image/')) {
+      const buf = await downloadTelegramFile(ctx, doc.file_id);
+      await sendMediaReply(ctx, buf, mime, caption, filename);
+      return;
+    }
+
+    // Everything else → try to extract text / PDF
+    await ctx.api.sendChatAction(ctx.chat.id, 'typing');
     const buf = await downloadTelegramFile(ctx, doc.file_id);
-    await sendMediaReply(ctx, buf, mime, ctx.message.caption ?? null);
+    const { extractFile } = await import('./utils/file-extract.js');
+    let extracted;
+    try {
+      extracted = await extractFile(buf, mime, filename);
+    } catch (err: any) {
+      await ctx.reply(`ขออภัยค่ะ ${err?.message ?? 'อ่านไฟล์ไม่ได้'}`);
+      return;
+    }
+    if (!extracted) {
+      await ctx.reply(`ไฟล์ \`${filename ?? mime}\` ยังไม่รองรับค่ะ — ส่งเป็น PDF, image, audio, docx, xlsx, txt, csv, json, md ได้`, { parse_mode: 'Markdown' });
+      return;
+    }
+    await sendMediaReply(ctx, extracted.buffer, extracted.mimeType, caption, extracted.filename);
   });
 
   // Direct keyboard button handlers — bypass Gemini for speed + reliability

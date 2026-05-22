@@ -3,6 +3,7 @@ import { listReminders } from '../tools/list-reminders.js';
 import { db } from '../firebase.js';
 import { isGoogleConfigured, getAuthUrl, isConnected } from '../services/google-auth.js';
 import { config } from '../config.js';
+import { getUserProvider, setUserProvider, type ModelProvider } from '../llm-router.js';
 
 export const QUICK_KEYBOARD = {
   keyboard: [
@@ -140,6 +141,40 @@ export async function handleStatus(ctx: Context) {
   );
 }
 
+const MODEL_LABELS: Record<ModelProvider, string> = {
+  auto: '🤖 auto (Claude → Gemini fallback)',
+  claude: '🟠 Claude only',
+  gemini: '🔵 Gemini only',
+};
+
+export async function handleModel(ctx: Context) {
+  const userId = String(ctx.from?.id);
+  const text = ctx.message?.text ?? '';
+  const arg = text.replace('/model', '').trim().toLowerCase();
+
+  if (!arg) {
+    const current = await getUserProvider(userId);
+    await ctx.reply(
+      `*Vera LLM provider*\n\n` +
+      `ปัจจุบัน: ${MODEL_LABELS[current]}\n\n` +
+      `เปลี่ยนได้ด้วย:\n` +
+      `• \`/model auto\` — Claude หลัก, fallback Gemini อัตโนมัติ\n` +
+      `• \`/model claude\` — Claude อย่างเดียว\n` +
+      `• \`/model gemini\` — Gemini อย่างเดียว`,
+      { parse_mode: 'Markdown' }
+    );
+    return;
+  }
+
+  if (arg !== 'auto' && arg !== 'claude' && arg !== 'gemini') {
+    await ctx.reply('ใช้: /model auto | claude | gemini');
+    return;
+  }
+
+  await setUserProvider(userId, arg as ModelProvider);
+  await ctx.reply(`เปลี่ยน provider เป็น ${MODEL_LABELS[arg as ModelProvider]} แล้วค่ะ ✅`);
+}
+
 export async function handleHelp(ctx: Context) {
   await ctx.reply(
     '*Vera — วิธีใช้งาน*\n\n' +
@@ -148,7 +183,7 @@ export async function handleHelp(ctx: Context) {
     '⏰ "เตือนฉันพรุ่งนี้ 9 โมงเรื่อง meeting"\n' +
     '📋 "ให้ Kai ทำ deploy ก่อน 5 โมง"\n' +
     '🔍 "ฉันพูดเรื่อง Firestore เมื่อไหร่?"\n\n' +
-    'คำสั่ง: /reminders /ideas /tasks /connect /help',
+    'คำสั่ง: /reminders /ideas /tasks /connect /model /help',
     { parse_mode: 'Markdown' }
   );
 }
