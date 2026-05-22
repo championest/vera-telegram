@@ -143,6 +143,25 @@ export async function handleModel(ctx) {
     await setUserProvider(userId, arg);
     await ctx.reply(`เปลี่ยน provider เป็น ${MODEL_LABELS[arg]} แล้วค่ะ ✅`);
 }
+export async function handleProactive(ctx) {
+    const userId = String(ctx.from?.id);
+    const text = ctx.message?.text ?? '';
+    const arg = text.replace('/proactive', '').trim().toLowerCase();
+    if (arg !== 'on' && arg !== 'off') {
+        const snap = await db.collection('vera-prefs').doc(userId).get();
+        const current = snap.data()?.['proactive'] === 'off' ? 'off' : 'on';
+        await ctx.reply(`*Proactive alerts*\n\n` +
+            `ปัจจุบัน: ${current === 'on' ? '🟢 on' : '🔴 off'}\n\n` +
+            `แจ้งเตือนอัตโนมัติ:\n` +
+            `📧 Email สำคัญ (every 10 min)\n` +
+            `⏰ นัดใกล้ ~10 นาที (every 5 min)\n` +
+            `📋 งานเลยกำหนด (daily 08:30 BKK)\n\n` +
+            `เปิด/ปิด: \`/proactive on\` หรือ \`/proactive off\``, { parse_mode: 'Markdown' });
+        return;
+    }
+    await db.collection('vera-prefs').doc(userId).set({ proactive: arg, updatedAt: new Date() }, { merge: true });
+    await ctx.reply(arg === 'on' ? '🟢 Proactive alerts เปิดแล้ว' : '🔴 Proactive alerts ปิดแล้ว');
+}
 export async function handleHelp(ctx) {
     await ctx.reply('*Vera — วิธีใช้งาน*\n\n' +
         'แค่พิมพ์ตามธรรมชาติค่ะ เช่น:\n\n' +
@@ -150,5 +169,5 @@ export async function handleHelp(ctx) {
         '⏰ "เตือนฉันพรุ่งนี้ 9 โมงเรื่อง meeting"\n' +
         '📋 "ให้ Kai ทำ deploy ก่อน 5 โมง"\n' +
         '🔍 "ฉันพูดเรื่อง Firestore เมื่อไหร่?"\n\n' +
-        'คำสั่ง: /reminders /ideas /tasks /connect /model /help', { parse_mode: 'Markdown' });
+        'คำสั่ง: /reminders /ideas /tasks /connect /model /proactive /help', { parse_mode: 'Markdown' });
 }

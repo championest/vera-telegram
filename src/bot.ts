@@ -1,7 +1,7 @@
 import { Bot, GrammyError, HttpError } from 'grammy';
 import { config } from './config.js';
 import { handleUserMessage, handleMediaMessage } from './handlers/message.js';
-import { handleStart, handleReminders, handleIdeas, handleTasks, handleHelp, handleConnect, handleCode, handleStatus, handleMenu, handleModel } from './handlers/command.js';
+import { handleStart, handleReminders, handleIdeas, handleTasks, handleHelp, handleConnect, handleCode, handleStatus, handleMenu, handleModel, handleProactive } from './handlers/command.js';
 import { handleReminderCallback } from './scheduler/reminders.js';
 import { sendMorningBrief } from './scheduler/morning-brief.js';
 import { db } from './firebase.js';
@@ -33,6 +33,7 @@ export function createBot(): Bot {
   bot.command('status', handleStatus);
   bot.command('menu', handleMenu);
   bot.command('model', handleModel);
+  bot.command('proactive', handleProactive);
   bot.command('brief', async (ctx) => {
     await ctx.api.sendChatAction(ctx.chat!.id, 'typing');
     try { await sendMorningBrief(bot); }
