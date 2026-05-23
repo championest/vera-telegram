@@ -1,6 +1,7 @@
 import express from 'express';
 import { exchangeCode } from '../services/google-auth.js';
 import { config } from '../config.js';
+import { recordClaudeSync, ClaudeSyncEntry } from '../memory/claude-sync.js';
 
 let pendingSuccess = false;
 export function getAndClearPendingSuccess(): boolean {
@@ -11,9 +12,30 @@ export function getAndClearPendingSuccess(): boolean {
 
 export function createHttpServer() {
   const app = express();
+  app.use(express.json({ limit: '256kb' }));
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', service: 'vera-telegram' });
+  });
+
+  app.post('/claude-sync', async (req, res) => {
+    try {
+      const body = req.body ?? {};
+      const entry: ClaudeSyncEntry = {
+        user_msg: String(body.user_msg ?? ''),
+        claude_summary: String(body.claude_summary ?? ''),
+        project: String(body.project ?? ''),
+        cwd: String(body.cwd ?? ''),
+        session_id: String(body.session_id ?? ''),
+        timestamp: String(body.timestamp ?? new Date().toISOString()),
+        source: 'claude-code',
+      };
+      await recordClaudeSync(entry);
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('[claude-sync] error:', err);
+      res.status(500).json({ ok: false, error: 'sync_failed' });
+    }
   });
 
   app.get('/oauth/callback', async (req, res) => {

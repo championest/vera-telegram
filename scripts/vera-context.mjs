@@ -61,6 +61,24 @@ if (!convSnap.empty) {
   }
 }
 
+// 1b. claude-conversations (recent Claude Code session turns)
+const claudeSnap = await db.collection('claude-conversations')
+  .orderBy('timestamp', 'desc')
+  .limit(7)
+  .get();
+
+if (!claudeSnap.empty) {
+  output.push('## Recent Claude Code session\n');
+  for (const doc of claudeSnap.docs) {
+    const d = doc.data();
+    const ts = d.timestamp ? new Date(d.timestamp).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }) : '';
+    output.push(`### ${d.project || 'session'}${ts ? ` — ${ts}` : ''}`);
+    if (d.user_msg) output.push(`**You:** ${d.user_msg}`);
+    if (d.claude_summary) output.push(`**Claude:** ${d.claude_summary}`);
+    output.push('');
+  }
+}
+
 // 2. champ-tasks (TODO + IN_PROGRESS)
 const tasksSnap = await db.collection('champ-tasks')
   .where('status', 'in', ['TODO', 'IN_PROGRESS'])
