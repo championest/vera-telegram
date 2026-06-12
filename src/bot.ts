@@ -3,6 +3,7 @@ import { config } from './config.js';
 import { handleUserMessage, handleMediaMessage } from './handlers/message.js';
 import { handleStart, handleReminders, handleIdeas, handleTasks, handleHelp, handleConnect, handleCode, handleStatus, handleMenu, handleModel, handleProactive } from './handlers/command.js';
 import { handleReminderCallback } from './scheduler/reminders.js';
+import { handleTicketCallback } from './scheduler/tickets.js';
 import { sendMorningBrief } from './scheduler/morning-brief.js';
 import { db } from './firebase.js';
 import { calendarListEvents } from './tools/calendar-list.js';
@@ -104,6 +105,22 @@ export function createBot(): Bot {
       const [, action, docId] = data.split(':');
       await handleReminderCallback(bot, action, docId, ctx.callbackQuery.id);
       try { await ctx.editMessageReplyMarkup(); } catch { /* message too old */ }
+
+    } else if (data.startsWith('tk:')) {
+      const [, action, ticketId] = data.split(':');
+      await ctx.answerCallbackQuery();
+      try {
+        await handleTicketCallback(
+          bot,
+          action as 'fix' | 'later' | 'done',
+          ticketId,
+          ctx.chat!.id,
+          ctx.callbackQuery.message!.message_id,
+        );
+      } catch (err) {
+        console.error('[ticket callback]', err);
+        await ctx.reply('Ticket action failed: ' + (err as Error).message);
+      }
 
     } else if (data === 'brief:plan_day') {
       await ctx.answerCallbackQuery({ text: 'กำลังวางแผน...' });

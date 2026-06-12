@@ -23,6 +23,10 @@ Personal Telegram AI secretary bot for Champ, deployed on Railway.
 - `vera-reminders` — scheduled reminders (userId, message, remindAt, repeat, status)
 - `vera-ideas` — saved ideas (title, body, tags, createdAt)
 - `team-workflow` — SHARED with team-dashboard (Vera appends with source: 'vera-bot')
+- `claude-tasks` — remote execution queue: Vera `dispatch_claude_task` writes pending → Mac executor daemon (`~/.claude/team/executor/`) runs Claude Code headless → writes result → `/task-result` or 60s sweeper pushes to Telegram. Admin-SDK-only (no public rules) by design.
+- `work-state` — rolling per-project state written by Claude Code Stop hook; surfaced in `get_session_context`
+- `claude-executor/heartbeat` — Mac daemon liveness (stale >2min = Mac offline)
+- `tickets` — user bug/suggestion tickets submitted from Up Level web apps (PKM Court today; widget reusable). Sweeper (`scheduler/tickets.ts`) polls `notified == false`, sends Telegram card with [🤖 Claude fix / ⏰ Later / ✅ Done] buttons. `fix` enqueues a `claude-tasks` doc bound to the ticket so the executor self-closes it.
 
 ## Required Firestore indexes (create in Firebase Console)
 - `vera-memory`: userId ASC, timestamp ASC
