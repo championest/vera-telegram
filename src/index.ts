@@ -7,6 +7,7 @@ import { startNotificationScheduler } from './scheduler/notifications.js';
 import { startProactiveScheduler } from './scheduler/proactive.js';
 import { startTaskResultSweeper } from './scheduler/task-results.js';
 import { startTicketScheduler } from './scheduler/tickets.js';
+import { startTicketCleanupScheduler } from './scheduler/tickets-cleanup.js';
 import { createHttpServer } from './server/http.js';
 import { startHQBridge } from './handlers/hq-bridge.js';
 
@@ -23,6 +24,7 @@ async function main() {
   startProactiveScheduler(bot);
   startTaskResultSweeper(bot);
   startTicketScheduler(bot);
+  startTicketCleanupScheduler();
 
   await bot.start({
     onStart: (info) => console.log(`Vera online as @${info.username}`),
