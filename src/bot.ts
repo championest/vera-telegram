@@ -112,7 +112,7 @@ export function createBot(): Bot {
       try {
         await handleTicketCallback(
           bot,
-          action as 'fix' | 'later' | 'done',
+          action as 'cancel' | 'done' | 'fix' | 'later',
           ticketId,
           ctx.chat!.id,
           ctx.callbackQuery.message!.message_id,
