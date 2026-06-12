@@ -2,6 +2,7 @@ import { githubListRepos, githubReadFile, githubUpdateFile, githubCreatePr, gith
 import { railwayListServices, railwayRedeploy, railwayGetLogs } from './railway.js';
 import { saveIdea } from './save-idea.js';
 import { saveChampTask, updateChampTask } from './save-champ-task.js';
+import { dispatchClaudeTask, checkClaudeTasks } from './dispatch-task.js';
 import { saveVision } from './save-vision.js';
 import { logFinance } from './log-finance.js';
 import { addPreorder } from './add-preorder.js';
@@ -26,6 +27,7 @@ import { gmailCreateDraft, gmailListDrafts } from './gmail-draft.js';
 import { saveResearch, listResearch, getResearch } from './save-research.js';
 import { googleDriveSave } from './google-drive.js';
 import { readGoogleDoc, readGoogleSheet } from './read-google-link.js';
+import { webOpen, webClick, webFill, webExtract, webClose } from './web-automation.js';
 import { notebooklmCreate } from './notebooklm.js';
 
 export async function executeToolCall(
@@ -38,6 +40,8 @@ export async function executeToolCall(
       case 'save_idea':            return await saveIdea(args);
       case 'save_champ_task':      return await saveChampTask(args);
       case 'update_champ_task':    return await updateChampTask(args);
+      case 'dispatch_claude_task': return await dispatchClaudeTask(args);
+      case 'check_claude_tasks':   return await checkClaudeTasks(args);
       case 'save_vision':          return await saveVision(args);
       case 'log_finance':          return await logFinance(args);
       case 'add_preorder':         return await addPreorder(args);
@@ -76,6 +80,11 @@ export async function executeToolCall(
       case 'google_drive_save':      return await googleDriveSave(args);
       case 'read_google_doc':        return await readGoogleDoc(args);
       case 'read_google_sheet':      return await readGoogleSheet(args);
+      case 'web_open':               return await webOpen(args);
+      case 'web_click':              return await webClick(args);
+      case 'web_fill':               return await webFill(args);
+      case 'web_extract':            return await webExtract(args);
+      case 'web_close':              return await webClose(args);
       case 'notebooklm_create':      return await notebooklmCreate(args);
       case 'github_list_repos':      return await githubListRepos(args);
       case 'github_read_file':       return await githubReadFile(args);

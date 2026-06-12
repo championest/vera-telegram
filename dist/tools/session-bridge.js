@@ -3,12 +3,29 @@ import admin from 'firebase-admin';
 const NOISE_PATTERNS = ['pre-push gate', 'Claude response complete', 'Session started', 'Auto-logged'];
 export async function getSessionContext(args) {
     const perSession = Number(args.limit ?? 10);
-    const snap = await db.collection('team-workflow')
-        .orderBy('timestamp', 'desc')
-        .limit(150)
-        .get();
-    if (snap.empty)
-        return 'ยังไม่มี session log จากคอมค่ะ';
+    const [snap, stateSnap] = await Promise.all([
+        db.collection('team-workflow').orderBy('timestamp', 'desc').limit(150).get(),
+        db.collection('work-state').orderBy('updated_at', 'desc').limit(5).get().catch(() => null),
+    ]);
+    const stateLines = [];
+    if (stateSnap && !stateSnap.empty) {
+        stateLines.push('*🧭 สถานะงานล่าสุดต่อ project (work-state)*');
+        for (const d of stateSnap.docs) {
+            const s = d.data();
+            const when = s['updated_at']?.toDate?.()
+                ? new Date(s['updated_at'].toDate()).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'short', timeStyle: 'short' })
+                : '';
+            stateLines.push(`• *${s['project']}* (${when}) — ${String(s['last_task'] ?? '').slice(0, 100)}`);
+            if (s['last_summary'])
+                stateLines.push(`   ↳ ${String(s['last_summary']).slice(0, 150)}`);
+            if (s['next'])
+                stateLines.push(`   → next: ${String(s['next']).slice(0, 100)}`);
+        }
+        stateLines.push('');
+    }
+    if (snap.empty) {
+        return stateLines.length > 0 ? stateLines.join('\n') : 'ยังไม่มี session log จากคอมค่ะ';
+    }
     // Filter noise, group by session date
     const bySession = {};
     for (const doc of snap.docs) {
@@ -24,7 +41,7 @@ export async function getSessionContext(args) {
     const sessions = Object.keys(bySession).sort().reverse().slice(0, 3);
     if (sessions.length === 0)
         return 'ไม่มี session log ที่น่าสนใจค่ะ';
-    const lines = ['*Session log จากคอม (ล่าสุด)*\n'];
+    const lines = [...stateLines, '*Session log จากคอม (ล่าสุด)*\n'];
     for (const session of sessions) {
         lines.push(`*📅 ${session}*`);
         for (const e of bySession[session].slice(0, perSession)) {

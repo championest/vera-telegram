@@ -400,6 +400,61 @@ export const toolDefinitions = [
             required: ['url'],
         },
     },
+    // ─── Web automation (Playwright) ───
+    {
+        name: 'web_open',
+        description: 'เปิดหน้าเว็บใน headless browser (Playwright) ใช้เมื่อต้องการ interactive automation — login, click, fill form, ติดตามสถานะที่ต้องผ่านหลายขั้น เช่น track shipping, จองคิว, เช็คตารางที่ต้อง login. คืนค่า URL ปัจจุบัน, title, body text ของหน้า. session คงอยู่จนกว่า web_close หรือ 10 นาที idle. สำหรับ static URL ที่อ่านครั้งเดียว ใช้ fetch_url แทน.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                url: { type: 'STRING', description: 'URL ที่จะเปิด (เติม https:// ให้อัตโนมัติถ้าไม่มี)' },
+            },
+            required: ['url'],
+        },
+    },
+    {
+        name: 'web_click',
+        description: 'คลิก element ในหน้าเว็บปัจจุบัน (ต้อง web_open ก่อน) — รับ visible text เช่น "Sign in", "ค้นหา" หรือ CSS selector เช่น "#submit-btn". คืนค่าสถานะ + body text ของหน้าใหม่หลัง click.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                target: { type: 'STRING', description: 'Visible text บนปุ่ม/ลิงก์ หรือ CSS selector (เริ่ม #, ., [ จะถือว่าเป็น selector)' },
+                role: { type: 'STRING', description: 'Optional ARIA role เช่น "button", "link" เพื่อช่วยเลือก element ให้แม่นขึ้น' },
+            },
+            required: ['target'],
+        },
+    },
+    {
+        name: 'web_fill',
+        description: 'กรอกค่าใน input/textarea ในหน้าเว็บปัจจุบัน (ต้อง web_open ก่อน) — รับ label, placeholder, หรือ CSS selector. ตั้ง submit=true เพื่อกด Enter หลังกรอก.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                target: { type: 'STRING', description: 'Label, placeholder หรือ CSS selector ของ input' },
+                value: { type: 'STRING', description: 'ค่าที่จะกรอก' },
+                submit: { type: 'BOOLEAN', description: 'true = กด Enter หลังกรอก. Default false.' },
+            },
+            required: ['target', 'value'],
+        },
+    },
+    {
+        name: 'web_extract',
+        description: 'อ่านเนื้อหา + ลิงก์สำคัญของหน้าเว็บปัจจุบัน ใช้หลังจาก web_click/web_fill เพื่อตรวจผลลัพธ์ หรือเมื่อต้องการสรุปหน้าซ้ำ',
+        parameters: {
+            type: 'OBJECT',
+            properties: {},
+            required: [],
+        },
+    },
+    {
+        name: 'web_close',
+        description: 'ปิด browser session ทันที (ปกติ auto-close หลัง idle 10 นาที). ใช้เมื่อเสร็จงาน และต้องการเริ่ม session ใหม่ (logout effect)',
+        parameters: {
+            type: 'OBJECT',
+            properties: {},
+            required: [],
+        },
+    },
     // ─── Google Docs/Sheets reader (via URL) ───
     {
         name: 'read_google_doc',
@@ -594,6 +649,36 @@ export const toolDefinitions = [
             type: 'OBJECT',
             properties: {
                 days: { type: 'NUMBER', description: 'จำนวนวันข้างหน้าที่จะดึง. Default: 14' },
+            },
+            required: [],
+        },
+    },
+    // ─── Remote Claude Code execution (Mac executor daemon) ───
+    {
+        name: 'dispatch_claude_task',
+        description: 'สั่งให้ Claude Code บนเครื่อง Mac ของ Champ "ลงมือทำงานจริง" ทันที (แก้โค้ด, สร้างไฟล์, รัน script, ตรวจระบบ, deploy ฯลฯ) — daemon บนเครื่องจะรัน Claude Code headless ใน project ที่ระบุ แล้วส่งผลกลับมาในแชทนี้. ใช้ทุกครั้งที่ Champ สั่งงานที่ต้องแตะโค้ด/ไฟล์/ระบบบนเครื่อง ไม่ใช่แค่คุย. ต่างจาก write_note_to_claude (ที่แค่ฝากโน้ตไว้อ่านทีหลัง) — อันนี้ทำงานเลย',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                task: {
+                    type: 'STRING',
+                    description: 'คำสั่งงานละเอียดพอที่ Claude Code จะทำได้โดยไม่ต้องถามกลับ (ไทยหรืออังกฤษ) ระบุสิ่งที่ต้องการให้ชัด',
+                },
+                project: {
+                    type: 'STRING',
+                    description: 'โฟลเดอร์ project ใต้ ~/Projects เช่น "up-level-guild-members-web", "UpLevelKids", "team-dashboard", "up-level-leaderboard", "vera-telegram" หรือ alias: guild, kids, marketplace, lorcana, dashboard, poster, hq, tpt. เว้นว่างถ้าไม่แน่ใจ',
+                },
+            },
+            required: ['task'],
+        },
+    },
+    {
+        name: 'check_claude_tasks',
+        description: 'เช็คสถานะ/ผลของงานที่เคยสั่ง Claude Code ผ่าน dispatch_claude_task และดูว่าเครื่อง Mac ออนไลน์ไหม. ใช้เมื่อ Champ ถาม "งานเสร็จยัง", "เครื่องออนไลน์ไหม", "ผลเป็นไง"',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                limit: { type: 'NUMBER', description: 'จำนวนงานล่าสุดที่จะแสดง. Default: 5' },
             },
             required: [],
         },

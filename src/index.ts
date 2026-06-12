@@ -5,21 +5,22 @@ import { startMorningBriefScheduler } from './scheduler/morning-brief.js';
 import { startStuckTaskChecker } from './scheduler/stuck-tasks.js';
 import { startNotificationScheduler } from './scheduler/notifications.js';
 import { startProactiveScheduler } from './scheduler/proactive.js';
+import { startTaskResultSweeper } from './scheduler/task-results.js';
 import { createHttpServer } from './server/http.js';
 import { startHQBridge } from './handlers/hq-bridge.js';
 
 async function main() {
   console.log('Starting Vera...');
 
-  createHttpServer();
-
   const bot = createBot();
+  createHttpServer(bot);
   startHQBridge(bot);
   startReminderScheduler(bot);
   startMorningBriefScheduler(bot);
   startStuckTaskChecker(bot);
   startNotificationScheduler(bot);
   startProactiveScheduler(bot);
+  startTaskResultSweeper(bot);
 
   await bot.start({
     onStart: (info) => console.log(`Vera online as @${info.username}`),

@@ -1,7 +1,9 @@
 import express from 'express';
+import type { Bot } from 'grammy';
 import { exchangeCode } from '../services/google-auth.js';
 import { config } from '../config.js';
 import { recordClaudeSync, ClaudeSyncEntry } from '../memory/claude-sync.js';
+import { pushTaskResult } from '../scheduler/task-results.js';
 
 let pendingSuccess = false;
 export function getAndClearPendingSuccess(): boolean {
@@ -10,7 +12,7 @@ export function getAndClearPendingSuccess(): boolean {
   return v;
 }
 
-export function createHttpServer() {
+export function createHttpServer(bot?: Bot) {
   const app = express();
   app.use(express.json({ limit: '256kb' }));
 
@@ -35,6 +37,23 @@ export function createHttpServer() {
     } catch (err) {
       console.error('[claude-sync] error:', err);
       res.status(500).json({ ok: false, error: 'sync_failed' });
+    }
+  });
+
+  // Mac executor pings this when a claude-task finishes; result text is read
+  // from Firestore by taskId (unguessable doc ID = auth), never from the body.
+  app.post('/task-result', async (req, res) => {
+    try {
+      const taskId = String(req.body?.taskId ?? '').trim();
+      if (!taskId || !bot) {
+        res.status(400).json({ ok: false });
+        return;
+      }
+      const pushed = await pushTaskResult(bot, taskId);
+      res.json({ ok: pushed });
+    } catch (err) {
+      console.error('[task-result] error:', err);
+      res.status(500).json({ ok: false });
     }
   });
 
