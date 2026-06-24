@@ -115,10 +115,14 @@ export async function handleCode(ctx: Context) {
 }
 
 export async function handleStatus(ctx: Context) {
-  const [googleConnected, reminderSnap, memorySnap] = await Promise.all([
+  const [googleConnected, reminderSnap, memorySnap, machineSnap, tokenSnap, pendingSnap, runningSnap] = await Promise.all([
     isConnected(),
     db.collection('vera-reminders').where('status', '==', 'pending').count().get(),
     db.collection('vera-memory').where('userId', '==', String(ctx.from?.id)).count().get(),
+    db.collection('machine-status').get(),
+    db.collection('token-usage').doc('summary').get(),
+    db.collection('claude-tasks').where('status', '==', 'pending').count().get(),
+    db.collection('claude-tasks').where('status', '==', 'running').count().get(),
   ]);
 
   const lastSessionSnap = await db.collection('team-workflow')
@@ -130,13 +134,36 @@ export async function handleStatus(ctx: Context) {
     ? 'ไม่มีข้อมูล'
     : lastSessionSnap.docs[0].data()['session'] ?? 'ไม่มีข้อมูล';
 
+  // ── Machine health (Mac mini + any reporting box) ──
+  const now = Date.now();
+  const machineLines = machineSnap.empty
+    ? '  (ยังไม่มี heartbeat)'
+    : machineSnap.docs.map((d) => {
+        const m = d.data();
+        const upd = m['updated_at']?.toDate?.()?.getTime?.() ?? 0;
+        const fresh = upd && now - upd < 5 * 60_000;
+        const svcUp = (m['services'] || []).filter((s: any) => s.running).length;
+        const svcTot = (m['services'] || []).length;
+        return `  ${fresh ? '🟢' : '⚪️'} *${m['id'] || d.id}* — RAM ${m['ram_pct']}% · Disk ${m['disk']?.pct}% · up ${m['uptime_h']}h · svc ${svcUp}/${svcTot}`;
+      }).join('\n');
+
+  // ── Token cost ──
+  const t = tokenSnap.exists ? tokenSnap.data()! : null;
+  const tokenLine = t
+    ? `💰 Token: วันนี้ $${t['today_cost_usd'] ?? 0} · 7วัน $${t['last7_cost_usd'] ?? 0} · รวม $${Math.round(t['all_time_cost_usd'] ?? 0)}`
+    : '💰 Token: ไม่มีข้อมูล';
+
+  const pending = pendingSnap.data().count;
+  const running = runningSnap.data().count;
+
   await ctx.reply(
-    '*Vera Status*\n\n' +
-    `Google: ${googleConnected ? '✅ Connected' : '❌ Not connected — /connect'}\n` +
-    `Reminders: ${reminderSnap.data().count} pending\n` +
-    `Memory: ${memorySnap.data().count} messages\n` +
-    `Last session: ${lastSession}\n` +
-    `Max memory: ${config.MAX_MEMORY_MESSAGES} messages`,
+    '*🖥️ Ops Status*\n\n' +
+    '*เครื่อง:*\n' + machineLines + '\n\n' +
+    tokenLine + '\n' +
+    `📋 Queue: ${running} กำลังทำ · ${pending} ค้าง\n` +
+    `🗓️ Last session: ${lastSession}\n\n` +
+    '*Vera:*\n' +
+    `Google: ${googleConnected ? '✅' : '❌ /connect'} · Reminders: ${reminderSnap.data().count} · Memory: ${memorySnap.data().count}`,
     { parse_mode: 'Markdown' }
   );
 }
