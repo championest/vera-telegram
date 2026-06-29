@@ -9,6 +9,7 @@ import { startTaskResultSweeper } from './scheduler/task-results.js';
 import { startTicketScheduler } from './scheduler/tickets.js';
 import { startTicketCleanupScheduler } from './scheduler/tickets-cleanup.js';
 import { startPosterDojoDigestScheduler } from './scheduler/poster-dojo-digest.js';
+import { startNewsApprovalScheduler } from './scheduler/news-approval.js';
 import { createHttpServer } from './server/http.js';
 import { startHQBridge } from './handlers/hq-bridge.js';
 
@@ -27,6 +28,7 @@ async function main() {
   startTicketScheduler(bot);
   startTicketCleanupScheduler();
   startPosterDojoDigestScheduler(bot);
+  startNewsApprovalScheduler(bot);
 
   await bot.start({
     onStart: (info) => console.log(`Vera online as @${info.username}`),

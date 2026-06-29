@@ -4,6 +4,7 @@ import { handleUserMessage, handleMediaMessage } from './handlers/message.js';
 import { handleStart, handleReminders, handleIdeas, handleTasks, handleHelp, handleConnect, handleCode, handleStatus, handleMenu, handleModel, handleProactive } from './handlers/command.js';
 import { handleReminderCallback } from './scheduler/reminders.js';
 import { handleTicketCallback } from './scheduler/tickets.js';
+import { handleNewsCallback } from './scheduler/news-approval.js';
 import { sendMorningBrief } from './scheduler/morning-brief.js';
 import { db } from './firebase.js';
 import { calendarListEvents } from './tools/calendar-list.js';
@@ -120,6 +121,23 @@ export function createBot(): Bot {
       } catch (err) {
         console.error('[ticket callback]', err);
         await ctx.reply('Ticket action failed: ' + (err as Error).message);
+      }
+
+    } else if (data.startsWith('news_ok:') || data.startsWith('news_no:')) {
+      const [tag, articleId] = data.split(':');
+      const action = tag === 'news_ok' ? 'ok' : 'no';
+      await ctx.answerCallbackQuery({ text: action === 'ok' ? 'เผยแพร่แล้ว ✅' : 'ตัดทิ้งแล้ว ❌' });
+      try {
+        await handleNewsCallback(
+          bot,
+          action,
+          articleId,
+          ctx.chat!.id,
+          ctx.callbackQuery.message!.message_id,
+        );
+      } catch (err) {
+        console.error('[news callback]', err);
+        await ctx.reply('News action failed: ' + (err as Error).message);
       }
 
     } else if (data === 'brief:plan_day') {
