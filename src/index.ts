@@ -8,6 +8,7 @@ import { startProactiveScheduler } from './scheduler/proactive.js';
 import { startTaskResultSweeper } from './scheduler/task-results.js';
 import { startTicketScheduler } from './scheduler/tickets.js';
 import { startTicketCleanupScheduler } from './scheduler/tickets-cleanup.js';
+import { startPosterDojoDigestScheduler } from './scheduler/poster-dojo-digest.js';
 import { createHttpServer } from './server/http.js';
 import { startHQBridge } from './handlers/hq-bridge.js';
 
@@ -25,6 +26,7 @@ async function main() {
   startTaskResultSweeper(bot);
   startTicketScheduler(bot);
   startTicketCleanupScheduler();
+  startPosterDojoDigestScheduler(bot);
 
   await bot.start({
     onStart: (info) => console.log(`Vera online as @${info.username}`),

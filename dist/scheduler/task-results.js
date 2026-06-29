@@ -8,6 +8,13 @@ export async function pushTaskResult(bot, taskId) {
     const t = snap.data();
     if (!['done', 'failed'].includes(String(t['status'])) || t['notified'] === true)
         return false;
+    // Poster Dojo practice renders are silent per-task — rolled up into the
+    // once-a-day digest (scheduler/poster-dojo-digest.ts) instead of spamming
+    // a Telegram message for every render. Mark notified so it isn't re-checked.
+    if (t['project'] === 'poster-dojo' || t['source'] === 'practice-loop') {
+        await ref.update({ notified: true });
+        return false;
+    }
     const emoji = t['status'] === 'done' ? '✅' : '❌';
     const proj = t['project'] ? ` [${t['project']}]` : '';
     const meta = [
