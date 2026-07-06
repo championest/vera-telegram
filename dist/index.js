@@ -12,10 +12,22 @@ import { startPosterDojoDigestScheduler } from './scheduler/poster-dojo-digest.j
 import { startNewsDigestScheduler } from './scheduler/news-digest.js';
 import { createHttpServer } from './server/http.js';
 import { startHQBridge } from './handlers/hq-bridge.js';
+import { startHeartbeat } from './scheduler/heartbeat.js';
+import { startStandbySupervisor } from './standby.js';
+const STANDBY = process.env.VERA_STANDBY === 'true';
 async function main() {
-    console.log('Starting Vera...');
     const bot = createBot();
     createHttpServer(bot);
+    if (STANDBY) {
+        // CLOUD STANDBY: idle until the mini (primary) goes down, then take over
+        // Telegram polling only. No schedulers/HQ bridge → never double-sends.
+        console.log('Starting Vera (STANDBY mode — waiting for primary to go down)...');
+        startStandbySupervisor(bot);
+        return;
+    }
+    // PRIMARY (mini): full service + heartbeat so the standby knows we're alive.
+    console.log('Starting Vera (PRIMARY)...');
+    startHeartbeat('mini');
     startHQBridge(bot);
     startReminderScheduler(bot);
     startMorningBriefScheduler(bot);
@@ -28,7 +40,7 @@ async function main() {
     startPosterDojoDigestScheduler(bot);
     startNewsDigestScheduler(bot);
     await bot.start({
-        onStart: (info) => console.log(`Vera online as @${info.username}`),
+        onStart: (info) => console.log(`Vera online as @${info.username} (PRIMARY)`),
     });
 }
 main().catch((err) => {
