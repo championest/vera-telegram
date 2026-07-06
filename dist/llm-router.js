@@ -5,6 +5,11 @@ import { runGeminiLoop, GEMINI_PRIMARY, GEMINI_FALLBACK } from './gemini-loop.js
 import { appendMessage } from './memory/conversation.js';
 /** Whether Claude is usable at all this process. If no key, everything routes to Gemini. */
 const HAS_CLAUDE = !!config.ANTHROPIC_API_KEY;
+// When Claude fails for a "hard" reason (no credit / bad key), skip it for a
+// while and serve on Gemini — then automatically retry Claude after the cooldown
+// (so funding the account or fixing the key self-heals with no redeploy).
+const CLAUDE_COOLDOWN_MS = 15 * 60 * 1000;
+let claudeCooldownUntil = 0;
 export const DEFAULT_PROVIDER = 'auto';
 const PREFS_COLLECTION = 'vera-prefs';
 const prefCache = new Map();
@@ -35,6 +40,17 @@ function isOverloaded(err) {
     if (typeof status === 'number' && (status === 429 || status === 503 || status === 529 || status >= 500))
         return true;
     return /overload|rate.?limit|503|529|service unavailable|temporarily|timeout|ETIMEDOUT|ECONNRESET/i.test(msg);
+}
+/** "Hard" Claude failures that won't fix themselves per-request: no credit, bad/expired key,
+ *  no model access. Fall back to Gemini AND cool down so we don't retry every turn. */
+function isClaudeHardFail(err) {
+    const msg = String(err?.message ?? err?.error?.error?.message ?? err ?? '');
+    const status = err?.status ?? err?.statusCode;
+    if (status === 401 || status === 403)
+        return true;
+    if (status === 400 && /credit|billing|balance|too low|quota|insufficient/i.test(msg))
+        return true;
+    return /credit balance|billing|too low|insufficient|quota exceeded/i.test(msg);
 }
 /** Convert NormalizedFile[] to Anthropic content blocks */
 function filesToClaudeBlocks(files) {
@@ -118,9 +134,8 @@ export async function runAgent(opts) {
         attachments: files.length ? filesToGeminiParts(files) : undefined,
         skipAppend: true,
     }, model);
-    if (provider === 'claude')
-        return runClaude();
-    if (provider === 'gemini') {
+    // Gemini with its own primary→fallback-model chain.
+    const runGeminiChain = async () => {
         try {
             return await runGemini(GEMINI_PRIMARY);
         }
@@ -131,30 +146,27 @@ export async function runAgent(opts) {
             }
             throw err;
         }
-    }
-    // auto: Claude → Gemini
+    };
+    if (provider === 'gemini')
+        return runGeminiChain();
+    // claude or auto → try Claude, fall back to Gemini on overload OR hard failure.
+    // While Claude is in cooldown (recent billing/auth failure) skip it entirely.
+    if (Date.now() < claudeCooldownUntil)
+        return runGeminiChain();
     try {
         return await runClaude();
     }
     catch (err) {
-        if (!isOverloaded(err))
+        const hard = isClaudeHardFail(err);
+        if (!hard && !isOverloaded(err))
             throw err;
-        console.warn('[llm-router] Claude overloaded, falling back to Gemini');
-        if (opts.sendUpdate) {
-            try {
-                await opts.sendUpdate('⚙️ Claude overloaded — switching to Gemini...');
-            }
-            catch { /* ignore */ }
+        if (hard) {
+            claudeCooldownUntil = Date.now() + CLAUDE_COOLDOWN_MS;
+            console.warn('[llm-router] Claude unavailable (billing/auth) — using Gemini for 15m');
         }
-        try {
-            return await runGemini(GEMINI_PRIMARY);
+        else {
+            console.warn('[llm-router] Claude overloaded — falling back to Gemini');
         }
-        catch (err2) {
-            if (isOverloaded(err2)) {
-                console.warn('[llm-router] Gemini primary also failed, trying fallback model');
-                return await runGemini(GEMINI_FALLBACK);
-            }
-            throw err2;
-        }
+        return runGeminiChain();
     }
 }
