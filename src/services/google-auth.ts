@@ -66,3 +66,17 @@ export async function isConnected(): Promise<boolean> {
   const snap = await db.collection('vera-google-tokens').doc('champ').get();
   return snap.exists && !!snap.data()?.access_token;
 }
+
+/** Friendly message when the Google connection is missing OR the refresh token died. */
+export const GOOGLE_EXPIRED = 'การเชื่อม Google หมดอายุแล้วค่ะ 🔑 — ส่ง /connect เพื่อเชื่อมใหม่ (ทำครั้งเดียวจบ)';
+
+/** Detect an expired/revoked refresh token (Google returns "invalid_grant"). */
+export function isInvalidGrant(e: unknown): boolean {
+  const s = String((e as any)?.response?.data?.error ?? (e as any)?.message ?? e ?? '');
+  return /invalid_grant/i.test(s);
+}
+
+/** Remove the dead token doc so isConnected()→false and tools stop failing loudly. */
+export async function clearTokens(): Promise<void> {
+  await db.collection('vera-google-tokens').doc('champ').delete().catch(() => {});
+}

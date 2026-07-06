@@ -1,5 +1,5 @@
 import { google } from 'googleapis';
-import { getAuthedClient, isConnected } from '../services/google-auth.js';
+import { getAuthedClient, isConnected, isInvalidGrant, clearTokens, GOOGLE_EXPIRED } from '../services/google-auth.js';
 
 const NOT_CONNECTED = 'ยังไม่ได้เชื่อม Google ค่ะ — ส่ง /connect เพื่อเริ่มต้น';
 
@@ -44,7 +44,13 @@ export async function calendarCreateEvent(args: Record<string, unknown>): Promis
     };
   }
 
-  const res = await calendar.events.insert({ calendarId: 'primary', requestBody: event });
+  let res;
+  try {
+    res = await calendar.events.insert({ calendarId: 'primary', requestBody: event });
+  } catch (e) {
+    if (isInvalidGrant(e)) { await clearTokens(); return GOOGLE_EXPIRED; }
+    throw e;
+  }
 
   return [
     `สร้างนัดหมายสำเร็จค่ะ ✅`,

@@ -1,5 +1,5 @@
 import { google } from 'googleapis';
-import { getAuthedClient, isConnected } from '../services/google-auth.js';
+import { getAuthedClient, isConnected, isInvalidGrant, clearTokens, GOOGLE_EXPIRED } from '../services/google-auth.js';
 
 const NOT_CONNECTED = 'ยังไม่ได้เชื่อม Google ค่ะ — ส่ง /connect เพื่อเริ่มต้น';
 
@@ -34,14 +34,20 @@ export async function calendarListEvents(args: Record<string, unknown>): Promise
   const now = new Date();
   const timeMax = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 
-  const res = await calendar.events.list({
-    calendarId: 'primary',
-    timeMin: now.toISOString(),
-    timeMax: timeMax.toISOString(),
-    maxResults,
-    singleEvents: true,
-    orderBy: 'startTime',
-  });
+  let res;
+  try {
+    res = await calendar.events.list({
+      calendarId: 'primary',
+      timeMin: now.toISOString(),
+      timeMax: timeMax.toISOString(),
+      maxResults,
+      singleEvents: true,
+      orderBy: 'startTime',
+    });
+  } catch (e) {
+    if (isInvalidGrant(e)) { await clearTokens(); return GOOGLE_EXPIRED; }
+    throw e;
+  }
 
   const events = res.data.items ?? [];
   if (events.length === 0) return `ไม่มีนัดใน ${days} วันข้างหน้าค่ะ`;
