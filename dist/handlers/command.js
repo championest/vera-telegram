@@ -1,8 +1,17 @@
 import { listReminders } from '../tools/list-reminders.js';
 import { db } from '../firebase.js';
 import { isGoogleConfigured, getAuthUrl, isConnected } from '../services/google-auth.js';
-import { config } from '../config.js';
 import { getUserProvider, setUserProvider } from '../llm-router.js';
+/** Reply with Markdown, falling back to plain text if Telegram rejects the formatting
+ *  (e.g. user-supplied titles with unbalanced *, _, ` characters). */
+async function replyMarkdownSafe(ctx, text) {
+    try {
+        await ctx.reply(text, { parse_mode: 'Markdown' });
+    }
+    catch {
+        await ctx.reply(text.replace(/[*_`]/g, ''));
+    }
+}
 export const QUICK_KEYBOARD = {
     keyboard: [
         [{ text: '📅 ตาราง' }, { text: '📧 เมล' }, { text: '⏰ Reminder' }],
@@ -29,7 +38,7 @@ export async function handleIdeas(ctx) {
         return;
     }
     const lines = snap.docs.map(d => `• *${d.data()['title']}*\n  ${d.data()['body']}`);
-    await ctx.reply(lines.join('\n\n'), { parse_mode: 'Markdown' });
+    await replyMarkdownSafe(ctx, lines.join('\n\n'));
 }
 export async function handleTasks(ctx) {
     const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
@@ -47,7 +56,7 @@ export async function handleTasks(ctx) {
         const t = d.data();
         return `• [${t['status']}] *${t['member']}*: ${t['task']}`;
     });
-    await ctx.reply(lines.join('\n'), { parse_mode: 'Markdown' });
+    await replyMarkdownSafe(ctx, lines.join('\n'));
 }
 export async function handleConnect(ctx) {
     if (!isGoogleConfigured()) {
@@ -98,10 +107,14 @@ export async function handleCode(ctx) {
     }
 }
 export async function handleStatus(ctx) {
-    const [googleConnected, reminderSnap, memorySnap] = await Promise.all([
+    const [googleConnected, reminderSnap, memorySnap, machineSnap, tokenSnap, pendingSnap, runningSnap] = await Promise.all([
         isConnected(),
         db.collection('vera-reminders').where('status', '==', 'pending').count().get(),
         db.collection('vera-memory').where('userId', '==', String(ctx.from?.id)).count().get(),
+        db.collection('machine-status').get(),
+        db.collection('token-usage').doc('summary').get(),
+        db.collection('claude-tasks').where('status', '==', 'pending').count().get(),
+        db.collection('claude-tasks').where('status', '==', 'running').count().get(),
     ]);
     const lastSessionSnap = await db.collection('team-workflow')
         .orderBy('timestamp', 'desc')
@@ -110,12 +123,32 @@ export async function handleStatus(ctx) {
     const lastSession = lastSessionSnap.empty
         ? 'ไม่มีข้อมูล'
         : lastSessionSnap.docs[0].data()['session'] ?? 'ไม่มีข้อมูล';
-    await ctx.reply('*Vera Status*\n\n' +
-        `Google: ${googleConnected ? '✅ Connected' : '❌ Not connected — /connect'}\n` +
-        `Reminders: ${reminderSnap.data().count} pending\n` +
-        `Memory: ${memorySnap.data().count} messages\n` +
-        `Last session: ${lastSession}\n` +
-        `Max memory: ${config.MAX_MEMORY_MESSAGES} messages`, { parse_mode: 'Markdown' });
+    // ── Machine health (Mac mini + any reporting box) ──
+    const now = Date.now();
+    const machineLines = machineSnap.empty
+        ? '  (ยังไม่มี heartbeat)'
+        : machineSnap.docs.map((d) => {
+            const m = d.data();
+            const upd = m['updated_at']?.toDate?.()?.getTime?.() ?? 0;
+            const fresh = upd && now - upd < 5 * 60_000;
+            const svcUp = (m['services'] || []).filter((s) => s.running).length;
+            const svcTot = (m['services'] || []).length;
+            return `  ${fresh ? '🟢' : '⚪️'} *${m['id'] || d.id}* — RAM ${m['ram_pct']}% · Disk ${m['disk']?.pct}% · up ${m['uptime_h']}h · svc ${svcUp}/${svcTot}`;
+        }).join('\n');
+    // ── Token cost ──
+    const t = tokenSnap.exists ? tokenSnap.data() : null;
+    const tokenLine = t
+        ? `💰 Token: วันนี้ $${t['today_cost_usd'] ?? 0} · 7วัน $${t['last7_cost_usd'] ?? 0} · รวม $${Math.round(t['all_time_cost_usd'] ?? 0)}`
+        : '💰 Token: ไม่มีข้อมูล';
+    const pending = pendingSnap.data().count;
+    const running = runningSnap.data().count;
+    await ctx.reply('*🖥️ Ops Status*\n\n' +
+        '*เครื่อง:*\n' + machineLines + '\n\n' +
+        tokenLine + '\n' +
+        `📋 Queue: ${running} กำลังทำ · ${pending} ค้าง\n` +
+        `🗓️ Last session: ${lastSession}\n\n` +
+        '*Vera:*\n' +
+        `Google: ${googleConnected ? '✅' : '❌ /connect'} · Reminders: ${reminderSnap.data().count} · Memory: ${memorySnap.data().count}`, { parse_mode: 'Markdown' });
 }
 const MODEL_LABELS = {
     auto: '🤖 auto (Claude → Gemini fallback)',

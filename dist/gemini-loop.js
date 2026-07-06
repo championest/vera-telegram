@@ -45,11 +45,29 @@ export async function runGeminiLoop(opts, modelName) {
         systemInstruction,
         tools: [{ functionDeclarations: toolDefinitions }],
     });
-    // Build chat history (exclude last user message — sent below)
-    const chatHistory = history.slice(0, -1).map(m => ({
+    // Build chat history (exclude last user message — sent below).
+    // Gemini requires history to START with a user turn and strictly alternate
+    // user/model — otherwise startChat/sendMessage throws. Sanitize to guarantee that.
+    const rawHistory = history.slice(0, -1).map(m => ({
         role: m.role === 'user' ? 'user' : 'model',
         parts: [{ text: m.content }],
     }));
+    const chatHistory = [];
+    for (const turn of rawHistory) {
+        if (chatHistory.length === 0 && turn.role !== 'user')
+            continue; // must start with user
+        const prev = chatHistory[chatHistory.length - 1];
+        if (prev && prev.role === turn.role) {
+            prev.parts[0].text += '\n' + turn.parts[0].text; // merge consecutive same-role turns
+        }
+        else {
+            chatHistory.push(turn);
+        }
+    }
+    // History must end on a model turn (so the next sendMessage is a user turn).
+    if (chatHistory.length && chatHistory[chatHistory.length - 1].role === 'user') {
+        chatHistory.pop();
+    }
     const chat = model.startChat({ history: chatHistory });
     const initialParts = [
         ...(attachments ?? []),
@@ -62,10 +80,12 @@ export async function runGeminiLoop(opts, modelName) {
         const calls = response.functionCalls?.();
         if (!calls || calls.length === 0) {
             const text = response.text();
+            // Only claim "done" if a tool actually ran. If nothing happened and there's
+            // no text, ask Champ to rephrase — never a misleading "✅ done".
             const finalText = text?.trim() ||
                 (executedTools.length > 0
                     ? `✅ เสร็จแล้ว\nดำเนินการ: ${executedTools.map(t => TOOL_LABELS[t] ?? t).join(' → ')}`
-                    : '✅ ดำเนินการเสร็จแล้ว');
+                    : 'ขอโทษค่ะ Vera ยังไม่แน่ใจว่าต้องทำอะไรให้ — ช่วยบอกใหม่อีกทีได้มั้ยคะ?');
             await appendMessage(userId, 'assistant', finalText);
             return finalText;
         }

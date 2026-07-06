@@ -102,10 +102,12 @@ export async function runGeminiLoop(opts: LoopOptions, modelName?: string): Prom
 
     if (!calls || calls.length === 0) {
       const text = response.text();
+      // Only claim "done" if a tool actually ran. If nothing happened and there's
+      // no text, ask Champ to rephrase — never a misleading "✅ done".
       const finalText = text?.trim() ||
         (executedTools.length > 0
           ? `✅ เสร็จแล้ว\nดำเนินการ: ${executedTools.map(t => TOOL_LABELS[t] ?? t).join(' → ')}`
-          : '✅ ดำเนินการเสร็จแล้ว');
+          : 'ขอโทษค่ะ Vera ยังไม่แน่ใจว่าต้องทำอะไรให้ — ช่วยบอกใหม่อีกทีได้มั้ยคะ?');
       await appendMessage(userId, 'assistant', finalText);
       return finalText;
     }

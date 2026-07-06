@@ -1,7 +1,10 @@
 import { db } from './firebase.js';
+import { config } from './config.js';
 import { runClaudeLoop } from './claude-loop.js';
 import { runGeminiLoop, GEMINI_PRIMARY, GEMINI_FALLBACK } from './gemini-loop.js';
 import { appendMessage } from './memory/conversation.js';
+/** Whether Claude is usable at all this process. If no key, everything routes to Gemini. */
+const HAS_CLAUDE = !!config.ANTHROPIC_API_KEY;
 export const DEFAULT_PROVIDER = 'auto';
 const PREFS_COLLECTION = 'vera-prefs';
 const prefCache = new Map();
@@ -91,7 +94,10 @@ function filesToGeminiParts(files) {
  * - 'auto'   : Claude primary, fall back to Gemini on overload/5xx
  */
 export async function runAgent(opts) {
-    const provider = opts.provider ?? await getUserProvider(opts.userId);
+    // If no Claude key is configured, force Gemini regardless of stored/requested preference.
+    const provider = HAS_CLAUDE
+        ? (opts.provider ?? await getUserProvider(opts.userId))
+        : 'gemini';
     const files = opts.files ?? [];
     // Persist user turn ONCE here so both loops see it in history
     await appendMessage(opts.userId, 'user', opts.userText || (files.length ? '[ส่งไฟล์มา]' : ''));

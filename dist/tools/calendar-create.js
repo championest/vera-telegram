@@ -22,8 +22,17 @@ export async function calendarCreateEvent(args) {
         location,
     };
     if (allDay) {
-        event.start = { date: startDateTime.slice(0, 10) };
-        event.end = { date: (endDateTime || startDateTime).slice(0, 10) };
+        const startDate = startDateTime.slice(0, 10);
+        // Google Calendar treats all-day end.date as EXCLUSIVE, so a same-day
+        // event ends the day AFTER it starts. Default end = start + 1 day.
+        let endDate = endDateTime.slice(0, 10);
+        if (!endDate || endDate <= startDate) {
+            const d = new Date(startDate + 'T00:00:00Z');
+            d.setUTCDate(d.getUTCDate() + 1);
+            endDate = d.toISOString().slice(0, 10);
+        }
+        event.start = { date: startDate };
+        event.end = { date: endDate };
     }
     else {
         event.start = { dateTime: startDateTime, timeZone: 'Asia/Bangkok' };

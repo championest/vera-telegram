@@ -10,6 +10,7 @@ import { calendarListEvents } from './tools/calendar-list.js';
 import { gmailListUnread } from './tools/gmail-read.js';
 import { listReminders } from './tools/list-reminders.js';
 import { getSessionContext } from './tools/session-bridge.js';
+import { listProposals, queueProposals, dismissProposals } from './tools/meta-proposals.js';
 export function createBot() {
     const bot = new Bot(config.TELEGRAM_BOT_TOKEN);
     const ownerId = parseInt(config.TELEGRAM_OWNER_CHAT_ID, 10);
@@ -32,6 +33,30 @@ export function createBot() {
     bot.command('menu', handleMenu);
     bot.command('model', handleModel);
     bot.command('proactive', handleProactive);
+    bot.command('proposals', async (ctx) => {
+        try {
+            await ctx.reply(await listProposals(), { parse_mode: 'Markdown' });
+        }
+        catch (err) {
+            await ctx.reply(`เกิดข้อผิดพลาด: ${err.message}`);
+        }
+    });
+    bot.command('queue', async (ctx) => {
+        try {
+            await ctx.reply(await queueProposals(ctx.match), { parse_mode: 'Markdown' });
+        }
+        catch (err) {
+            await ctx.reply(`เกิดข้อผิดพลาด: ${err.message}`);
+        }
+    });
+    bot.command('dismiss', async (ctx) => {
+        try {
+            await ctx.reply(await dismissProposals(ctx.match), { parse_mode: 'Markdown' });
+        }
+        catch (err) {
+            await ctx.reply(`เกิดข้อผิดพลาด: ${err.message}`);
+        }
+    });
     bot.command('brief', async (ctx) => {
         await ctx.api.sendChatAction(ctx.chat.id, 'typing');
         try {

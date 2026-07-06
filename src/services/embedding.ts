@@ -1,6 +1,6 @@
 import { genAI } from '../gemini.js';
 
-const EMBED_MODEL = 'text-embedding-004';
+const EMBED_MODEL = 'gemini-embedding-001';
 export const EMBED_DIM = 768;
 
 /** Returns a 768-dim embedding vector for the input text. */
