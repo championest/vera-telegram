@@ -751,8 +751,8 @@ export const toolDefinitions: FunctionDeclaration[] = [
         task_id: { type: 'STRING' as any, description: 'Optional: Firestore doc ID of existing task to update (skip member/task fields if updating)' },
         member: {
           type: 'STRING' as any,
-          enum: ['ace', 'kai', 'nova', 'sam', 'jade', 'iris', 'pixel', 'bolt', 'rena', 'max', 'sage', 'flux', 'vera'],
-          description: 'Team member to assign task to (required for new tasks)',
+          enum: ['ace', 'cody', 'coco', 'scout', 'spoty', 'memo', 'arty', 'bolt', 'amy', 'pi', 'book', 'lens', 'nong', 'spike', 'vera'],
+          description: 'Team member to assign task to (required for new tasks). ace=chief of staff, cody=dev, coco=content, scout=research, spoty=QA, memo=memory, arty=design, bolt=tools, amy=customer insight, pi=math/physics, book=instructional design, lens=visual editor, nong=student QA, spike=workflow monitor.',
         },
         task: { type: 'STRING' as any, description: 'Task description (required for new tasks)' },
         status: {

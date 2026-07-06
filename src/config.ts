@@ -2,7 +2,8 @@ import { z } from 'zod';
 
 const envSchema = z.object({
   TELEGRAM_BOT_TOKEN: z.string().min(1),
-  ANTHROPIC_API_KEY: z.string().min(1),
+  // Optional: if absent, the LLM router falls back to Gemini instead of crashing on boot.
+  ANTHROPIC_API_KEY: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
   FIREBASE_PROJECT_ID: z.string().min(1),
   FIREBASE_CLIENT_EMAIL: z.string().email(),

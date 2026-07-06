@@ -5,6 +5,16 @@ import { isGoogleConfigured, getAuthUrl, isConnected } from '../services/google-
 import { config } from '../config.js';
 import { getUserProvider, setUserProvider, type ModelProvider } from '../llm-router.js';
 
+/** Reply with Markdown, falling back to plain text if Telegram rejects the formatting
+ *  (e.g. user-supplied titles with unbalanced *, _, ` characters). */
+async function replyMarkdownSafe(ctx: Context, text: string) {
+  try {
+    await ctx.reply(text, { parse_mode: 'Markdown' });
+  } catch {
+    await ctx.reply(text.replace(/[*_`]/g, ''));
+  }
+}
+
 export const QUICK_KEYBOARD = {
   keyboard: [
     [{ text: '📅 ตาราง' }, { text: '📧 เมล' }, { text: '⏰ Reminder' }],
@@ -38,7 +48,7 @@ export async function handleIdeas(ctx: Context) {
     return;
   }
   const lines = snap.docs.map(d => `• *${d.data()['title']}*\n  ${d.data()['body']}`);
-  await ctx.reply(lines.join('\n\n'), { parse_mode: 'Markdown' });
+  await replyMarkdownSafe(ctx, lines.join('\n\n'));
 }
 
 export async function handleTasks(ctx: Context) {
@@ -58,7 +68,7 @@ export async function handleTasks(ctx: Context) {
     const t = d.data();
     return `• [${t['status']}] *${t['member']}*: ${t['task']}`;
   });
-  await ctx.reply(lines.join('\n'), { parse_mode: 'Markdown' });
+  await replyMarkdownSafe(ctx, lines.join('\n'));
 }
 
 export async function handleConnect(ctx: Context) {

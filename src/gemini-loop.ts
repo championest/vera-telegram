@@ -64,11 +64,27 @@ export async function runGeminiLoop(opts: LoopOptions, modelName?: string): Prom
     tools: [{ functionDeclarations: toolDefinitions }],
   });
 
-  // Build chat history (exclude last user message — sent below)
-  const chatHistory = history.slice(0, -1).map(m => ({
+  // Build chat history (exclude last user message — sent below).
+  // Gemini requires history to START with a user turn and strictly alternate
+  // user/model — otherwise startChat/sendMessage throws. Sanitize to guarantee that.
+  const rawHistory = history.slice(0, -1).map(m => ({
     role: m.role === 'user' ? ('user' as const) : ('model' as const),
     parts: [{ text: m.content }],
   }));
+  const chatHistory: typeof rawHistory = [];
+  for (const turn of rawHistory) {
+    if (chatHistory.length === 0 && turn.role !== 'user') continue; // must start with user
+    const prev = chatHistory[chatHistory.length - 1];
+    if (prev && prev.role === turn.role) {
+      prev.parts[0].text += '\n' + turn.parts[0].text; // merge consecutive same-role turns
+    } else {
+      chatHistory.push(turn);
+    }
+  }
+  // History must end on a model turn (so the next sendMessage is a user turn).
+  if (chatHistory.length && chatHistory[chatHistory.length - 1].role === 'user') {
+    chatHistory.pop();
+  }
 
   const chat = model.startChat({ history: chatHistory });
 

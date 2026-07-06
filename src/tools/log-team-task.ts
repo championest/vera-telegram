@@ -1,6 +1,17 @@
 import { db } from '../firebase.js';
 import { FieldValue } from 'firebase-admin/firestore';
 
+// Map legacy codenames → current team roster so old dispatches still route correctly.
+const MEMBER_ALIASES: Record<string, string> = {
+  kai: 'cody', nova: 'coco', sam: 'scout', jade: 'spoty',
+  iris: 'memo', pixel: 'arty', rena: 'amy', max: 'pi', sage: 'book', flux: 'spike',
+};
+
+function normalizeMember(raw: unknown): string {
+  const m = String(raw ?? '').trim().toLowerCase();
+  return MEMBER_ALIASES[m] ?? m;
+}
+
 export async function logTeamTask(input: Record<string, unknown>, userId: string): Promise<string> {
   const taskId = String(input['task_id'] ?? '').trim();
 
@@ -17,9 +28,10 @@ export async function logTeamTask(input: Record<string, unknown>, userId: string
     return `Task ${taskId} updated. Status: ${input['status'] ?? 'unchanged'}`;
   }
 
+  const member = normalizeMember(input['member']);
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
   const ref = await db.collection('team-workflow').add({
-    member: input['member'],
+    member,
     task: input['task'],
     status: input['status'] ?? 'TODO',
     notes: input['notes'] ?? '',
@@ -30,5 +42,5 @@ export async function logTeamTask(input: Record<string, unknown>, userId: string
     dispatchedBy: userId,
     timestamp: FieldValue.serverTimestamp(),
   });
-  return `Task logged. Member: ${input['member']}, Status: ${input['status'] ?? 'TODO'}. ID: ${ref.id}`;
+  return `Task logged. Member: ${member}, Status: ${input['status'] ?? 'TODO'}. ID: ${ref.id}`;
 }
