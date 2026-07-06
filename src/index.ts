@@ -15,7 +15,10 @@ import { startHQBridge } from './handlers/hq-bridge.js';
 import { startHeartbeat } from './scheduler/heartbeat.js';
 import { startStandbySupervisor } from './standby.js';
 
-const STANDBY = process.env.VERA_STANDBY === 'true';
+// Default = STANDBY (safe): a cloud host stays idle unless explicitly made primary.
+// The mini is pinned primary via its launchd env (VERA_ROLE=primary), so only ONE
+// instance is ever primary even if a cloud box redeploys with no env changes.
+const STANDBY = process.env.VERA_ROLE !== 'primary';
 
 async function main() {
   const bot = createBot();
