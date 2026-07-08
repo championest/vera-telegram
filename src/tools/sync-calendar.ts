@@ -1,24 +1,17 @@
 import { db } from '../firebase.js';
 import { FieldValue } from 'firebase-admin/firestore';
-import { calendarListEvents } from './calendar-list.js';
+import { fetchCalendarEvents } from './calendar-list.js';
 
 export async function syncCalendar(input: Record<string, unknown>): Promise<string> {
   const days = Number(input['days'] ?? 14);
 
-  const raw = await calendarListEvents({ days, max_results: 50 });
+  // Fetch structured events directly. (Previously this parsed a ```json``` block
+  // out of calendarListEvents' human-formatted text — which it never emits — so
+  // sync ALWAYS failed with "ไม่พบ event data".)
+  const result = await fetchCalendarEvents(days, 50);
+  if (!result.ok) return `ซิงค์ไม่สำเร็จ — ${result.message}`;
 
-  let parsed: any[] = [];
-  try {
-    const jsonMatch = raw.match(/```json\n([\s\S]*?)\n```/);
-    if (jsonMatch) {
-      parsed = JSON.parse(jsonMatch[1]);
-    } else {
-      return `ซิงค์ไม่สำเร็จ — ไม่พบ event data จาก Google Calendar`;
-    }
-  } catch {
-    return `ซิงค์ไม่สำเร็จ — parse error`;
-  }
-
+  const parsed = result.events;
   if (!parsed.length) return `ไม่มี event ใน ${days} วันข้างหน้า`;
 
   const batch = db.batch();

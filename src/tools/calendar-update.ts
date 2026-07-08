@@ -1,7 +1,8 @@
 import { google } from 'googleapis';
-import { getAuthedClient, isConnected } from '../services/google-auth.js';
+import { getAuthedClient, isConnected, friendlyGoogleError } from '../services/google-auth.js';
 
 const NOT_CONNECTED = 'ยังไม่ได้เชื่อม Google ค่ะ — ส่ง /connect เพื่อเริ่มต้น';
+const CALENDAR_API = 'calendar-json.googleapis.com';
 
 export async function calendarUpdateEvent(args: Record<string, unknown>): Promise<string> {
   if (!await isConnected()) return NOT_CONNECTED;
@@ -30,7 +31,13 @@ export async function calendarUpdateEvent(args: Record<string, unknown>): Promis
       : { dateTime: args.end_datetime, timeZone: 'Asia/Bangkok' };
   }
 
-  await calendar.events.patch({ calendarId: 'primary', eventId, requestBody: patch });
+  try {
+    await calendar.events.patch({ calendarId: 'primary', eventId, requestBody: patch });
+  } catch (e) {
+    const friendly = await friendlyGoogleError(e, 'Calendar', CALENDAR_API);
+    if (friendly) return friendly;
+    throw e;
+  }
   return `อัพเดตนัด ${eventId} สำเร็จค่ะ ✅`;
 }
 
@@ -43,6 +50,12 @@ export async function calendarDeleteEvent(args: Record<string, unknown>): Promis
   if (!eventId) return 'กรุณาระบุ event_id ค่ะ';
 
   const calendar = google.calendar({ version: 'v3', auth });
-  await calendar.events.delete({ calendarId: 'primary', eventId });
+  try {
+    await calendar.events.delete({ calendarId: 'primary', eventId });
+  } catch (e) {
+    const friendly = await friendlyGoogleError(e, 'Calendar', CALENDAR_API);
+    if (friendly) return friendly;
+    throw e;
+  }
   return `ลบนัด ${eventId} สำเร็จค่ะ 🗑`;
 }
