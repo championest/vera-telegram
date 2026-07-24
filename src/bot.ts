@@ -4,6 +4,7 @@ import { handleUserMessage, handleMediaMessage } from './handlers/message.js';
 import { handleStart, handleReminders, handleIdeas, handleTasks, handleHelp, handleConnect, handleCode, handleStatus, handleMenu, handleModel, handleProactive } from './handlers/command.js';
 import { handleReminderCallback } from './scheduler/reminders.js';
 import { handleTicketCallback } from './scheduler/tickets.js';
+import { handleForgeCallback } from './scheduler/forge-approve.js';
 import { sendMorningBrief } from './scheduler/morning-brief.js';
 import { db } from './firebase.js';
 import { calendarListEvents } from './tools/calendar-list.js';
@@ -118,6 +119,22 @@ export function createBot(): Bot {
       const [, action, docId] = data.split(':');
       await handleReminderCallback(bot, action, docId, ctx.callbackQuery.id);
       try { await ctx.editMessageReplyMarkup(); } catch { /* message too old */ }
+
+    } else if (data.startsWith('fg:')) {
+      const [, action, bugId] = data.split(':');
+      try {
+        await handleForgeCallback(
+          bot,
+          action,
+          bugId,
+          ctx.chat!.id,
+          ctx.callbackQuery.message!.message_id,
+          ctx.callbackQuery.id,
+        );
+      } catch (err) {
+        console.error('[forge callback]', err);
+        await ctx.answerCallbackQuery({ text: 'Forge action failed' });
+      }
 
     } else if (data.startsWith('tk:')) {
       const [, action, ticketId] = data.split(':');
