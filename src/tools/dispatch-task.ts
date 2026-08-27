@@ -29,7 +29,7 @@ export async function dispatchClaudeTask(input: Record<string, unknown>): Promis
   const online = await executorOnline();
   const where = project ? ` (project: ${project})` : '';
   if (online) {
-    return `ส่งงานให้ Claude Code บนเครื่อง Mac แล้วค่ะ ✅${where}\nTask ID: ${ref.id}\nเครื่องออนไลน์อยู่ — ปกติเริ่มทำภายใน ~20 วินาที เสร็จแล้ว Vera จะส่งผลมาในแชทนี้เลยค่ะ`;
+    return `ส่งงานให้ Claude Code บนเครื่อง Mac แล้วค่ะ ✅${where}\nTask ID: ${ref.id}\nเครื่องออนไลน์อยู่ — เริ่มทำทันที Vera จะอัปเดตความคืบหน้าให้เห็นระหว่างทาง แล้วส่งผลสรุปมาในแชทนี้ค่ะ`;
   }
   return `คิวงานบันทึกแล้วค่ะ ⏳${where}\nTask ID: ${ref.id}\n⚠️ แต่ตอนนี้เครื่อง Mac ดูออฟไลน์อยู่ (ไม่เห็น heartbeat) — งานจะเริ่มทันทีที่เครื่องกลับมาออนไลน์ค่ะ`;
 }

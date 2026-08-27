@@ -4,6 +4,7 @@ import { executeToolCall } from './tools/handlers.js';
 import { loadHistory, appendMessage } from './memory/conversation.js';
 import { buildSystemPrompt } from './persona/vera.js';
 import { loadFactsForPrompt } from './tools/facts.js';
+import { prefetchRecall } from './memory/recall.js';
 
 const TOOL_LABELS: Record<string, string> = {
   web_search: '🔍 ค้นข้อมูล',
@@ -49,12 +50,13 @@ export async function runClaudeLoop(opts: ClaudeLoopOptions): Promise<string> {
     await appendMessage(userId, 'user', userText);
   }
 
-  const [history, longTermMemory] = await Promise.all([
+  const [history, longTermMemory, recall] = await Promise.all([
     loadHistory(userId),
     loadFactsForPrompt(userId),
+    prefetchRecall(userId, userText),
   ]);
 
-  const systemPrompt = buildSystemPrompt(new Date(), longTermMemory);
+  const systemPrompt = buildSystemPrompt(new Date(), longTermMemory + recall);
 
   const historyMessages: Anthropic.MessageParam[] = history.slice(0, -1).map(m => ({
     role: m.role === 'user' ? 'user' : 'assistant',

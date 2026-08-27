@@ -5,6 +5,7 @@ import { executeToolCall } from './tools/handlers.js';
 import { loadHistory, appendMessage } from './memory/conversation.js';
 import { buildSystemPrompt } from './persona/vera.js';
 import { loadFactsForPrompt } from './tools/facts.js';
+import { prefetchRecall } from './memory/recall.js';
 
 const TOOL_LABELS: Record<string, string> = {
   web_search: '🔍 ค้นข้อมูล',
@@ -51,12 +52,13 @@ export async function runGeminiLoop(opts: LoopOptions, modelName?: string): Prom
     await appendMessage(userId, 'user', userText);
   }
 
-  const [history, longTermMemory] = await Promise.all([
+  const [history, longTermMemory, recall] = await Promise.all([
     loadHistory(userId),
     loadFactsForPrompt(userId),
+    prefetchRecall(userId, userText),
   ]);
 
-  const systemInstruction = buildSystemPrompt(new Date(), longTermMemory);
+  const systemInstruction = buildSystemPrompt(new Date(), longTermMemory + recall);
 
   const model = genAI.getGenerativeModel({
     model: modelName ?? MODEL_NAME,

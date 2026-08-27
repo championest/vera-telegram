@@ -1,17 +1,31 @@
 import { db } from '../firebase.js';
 import { FieldValue } from 'firebase-admin/firestore';
+import { embed } from '../services/embedding.js';
+import { invalidateRecallCache } from '../memory/recall.js';
 
 export async function saveFact(args: Record<string, unknown>, userId: string): Promise<string> {
   const fact = String(args.fact ?? '').trim();
   const category = String(args.category ?? 'general').trim();
   if (!fact) return 'กรุณาระบุ fact ที่อยากบันทึกค่ะ';
 
+  // Embed on write so this fact is reachable by auto-recall, and so the rollup's
+  // semantic dedupe can tell it apart from facts it later extracts on its own.
+  let embedding: number[] | null = null;
+  try {
+    embedding = await embed(fact);
+  } catch (err: any) {
+    console.warn('[facts] embed failed:', err?.message ?? err);
+  }
+
   await db.collection('vera-facts').add({
     userId,
     fact,
     category,
+    ...(embedding ? { embedding } : {}),
     createdAt: FieldValue.serverTimestamp(),
   });
+
+  invalidateRecallCache(userId);
 
   return `บันทึก fact สำเร็จค่ะ ✅\n_"${fact}"_ [${category}]`;
 }

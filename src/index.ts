@@ -10,6 +10,8 @@ import { startTicketScheduler } from './scheduler/tickets.js';
 import { startTicketCleanupScheduler } from './scheduler/tickets-cleanup.js';
 import { startPosterDojoDigestScheduler } from './scheduler/poster-dojo-digest.js';
 import { startNewsDigestScheduler } from './scheduler/news-digest.js';
+import { startMemoryRollupScheduler } from './scheduler/memory-rollup.js';
+import { startTaskProgressListener } from './scheduler/task-progress.js';
 import { createHttpServer } from './server/http.js';
 import { startHQBridge } from './handlers/hq-bridge.js';
 import { startHeartbeat } from './scheduler/heartbeat.js';
@@ -46,6 +48,8 @@ async function main() {
   startTicketCleanupScheduler();
   startPosterDojoDigestScheduler(bot);
   startNewsDigestScheduler(bot);
+  startMemoryRollupScheduler();
+  startTaskProgressListener(bot);
 
   await bot.start({
     onStart: (info) => console.log(`Vera online as @${info.username} (PRIMARY)`),
