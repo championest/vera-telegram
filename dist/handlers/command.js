@@ -102,8 +102,16 @@ export async function handleCode(ctx) {
         await ctx.reply('เชื่อม Google สำเร็จแล้วค่ะ ✅\nตอนนี้ใช้ Gmail และ Calendar ได้เลย');
     }
     catch (err) {
-        console.error('[handleCode error]', err);
-        await ctx.reply('เชื่อมไม่สำเร็จค่ะ — code อาจหมดอายุหรือไม่ถูกต้อง\nลอง /connect ใหม่อีกครั้งนะคะ');
+        console.error('[handleCode error]', err?.response?.data ?? err);
+        // Surface the real Google reason so Champ isn't left guessing (the generic
+        // "code expired" message hid errors like redirect_uri_mismatch / access_denied).
+        const reason = err?.response?.data?.error ?? err?.message ?? '';
+        const hint = /redirect_uri_mismatch/i.test(String(reason))
+            ? '\n⚠️ redirect_uri ไม่ตรงกับที่ตั้งใน Google Cloud (ต้องมี `http://localhost`)'
+            : /invalid_grant/i.test(String(reason))
+                ? '\n⚠️ code หมดอายุหรือถูกใช้ไปแล้ว — /connect แล้วรีบส่ง /code ทันทีนะคะ'
+                : reason ? `\n(รายละเอียด: ${String(reason).slice(0, 120)})` : '';
+        await ctx.reply(`เชื่อมไม่สำเร็จค่ะ — ลอง /connect ใหม่อีกครั้งนะคะ${hint}`, { parse_mode: 'Markdown' }).catch(() => ctx.reply(`เชื่อมไม่สำเร็จค่ะ — ลอง /connect ใหม่อีกครั้งนะคะ`));
     }
 }
 export async function handleStatus(ctx) {

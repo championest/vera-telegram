@@ -1,7 +1,42 @@
 import { google } from 'googleapis';
-import { getAuthedClient, isConnected, isInvalidGrant, clearTokens, GOOGLE_EXPIRED } from '../services/google-auth.js';
+import { getAuthedClient, isConnected, friendlyGoogleError } from '../services/google-auth.js';
 
 const NOT_CONNECTED = 'ยังไม่ได้เชื่อม Google ค่ะ — ส่ง /connect เพื่อเริ่มต้น';
+const CALENDAR_API = 'calendar-json.googleapis.com';
+
+export type CalendarFetch =
+  | { ok: true; events: any[] }
+  | { ok: false; message: string };
+
+/** Fetch upcoming primary-calendar events, mapping auth/config errors to
+ *  friendly messages. Shared by the formatter (calendarListEvents) and the
+ *  Firestore sync (syncCalendar) so both handle a disabled API / dead token
+ *  identically. */
+export async function fetchCalendarEvents(days: number, maxResults: number): Promise<CalendarFetch> {
+  if (!await isConnected()) return { ok: false, message: NOT_CONNECTED };
+  const auth = await getAuthedClient();
+  if (!auth) return { ok: false, message: NOT_CONNECTED };
+
+  const calendar = google.calendar({ version: 'v3', auth });
+  const now = new Date();
+  const timeMax = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+
+  try {
+    const res = await calendar.events.list({
+      calendarId: 'primary',
+      timeMin: now.toISOString(),
+      timeMax: timeMax.toISOString(),
+      maxResults,
+      singleEvents: true,
+      orderBy: 'startTime',
+    });
+    return { ok: true, events: res.data.items ?? [] };
+  } catch (e) {
+    const friendly = await friendlyGoogleError(e, 'Calendar', CALENDAR_API);
+    if (friendly) return { ok: false, message: friendly };
+    throw e;
+  }
+}
 
 function formatEventDate(start: any): string {
   if (start.dateTime) {
@@ -23,33 +58,13 @@ function formatEventDate(start: any): string {
 }
 
 export async function calendarListEvents(args: Record<string, unknown>): Promise<string> {
-  if (!await isConnected()) return NOT_CONNECTED;
-  const auth = await getAuthedClient();
-  if (!auth) return NOT_CONNECTED;
-
-  const calendar = google.calendar({ version: 'v3', auth });
   const maxResults = Number(args.max_results ?? 10);
   const days = Number(args.days ?? 7);
 
-  const now = new Date();
-  const timeMax = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+  const result = await fetchCalendarEvents(days, maxResults);
+  if (!result.ok) return result.message;
 
-  let res;
-  try {
-    res = await calendar.events.list({
-      calendarId: 'primary',
-      timeMin: now.toISOString(),
-      timeMax: timeMax.toISOString(),
-      maxResults,
-      singleEvents: true,
-      orderBy: 'startTime',
-    });
-  } catch (e) {
-    if (isInvalidGrant(e)) { await clearTokens(); return GOOGLE_EXPIRED; }
-    throw e;
-  }
-
-  const events = res.data.items ?? [];
+  const events = result.events;
   if (events.length === 0) return `ไม่มีนัดใน ${days} วันข้างหน้าค่ะ`;
 
   const lines = [`*นัดหมายใน ${days} วันข้างหน้า (${events.length} รายการ)*\n`];

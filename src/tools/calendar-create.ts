@@ -1,7 +1,8 @@
 import { google } from 'googleapis';
-import { getAuthedClient, isConnected, isInvalidGrant, clearTokens, GOOGLE_EXPIRED } from '../services/google-auth.js';
+import { getAuthedClient, isConnected, friendlyGoogleError } from '../services/google-auth.js';
 
 const NOT_CONNECTED = 'ยังไม่ได้เชื่อม Google ค่ะ — ส่ง /connect เพื่อเริ่มต้น';
+const CALENDAR_API = 'calendar-json.googleapis.com';
 
 export async function calendarCreateEvent(args: Record<string, unknown>): Promise<string> {
   if (!await isConnected()) return NOT_CONNECTED;
@@ -48,7 +49,8 @@ export async function calendarCreateEvent(args: Record<string, unknown>): Promis
   try {
     res = await calendar.events.insert({ calendarId: 'primary', requestBody: event });
   } catch (e) {
-    if (isInvalidGrant(e)) { await clearTokens(); return GOOGLE_EXPIRED; }
+    const friendly = await friendlyGoogleError(e, 'Calendar', CALENDAR_API);
+    if (friendly) return friendly;
     throw e;
   }
 
