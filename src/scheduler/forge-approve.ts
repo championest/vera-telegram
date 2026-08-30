@@ -6,6 +6,7 @@
 import type { Bot } from 'grammy';
 import { db } from '../firebase.js';
 import { FieldValue } from 'firebase-admin/firestore';
+import { mdEscape, editMd } from '../utils/telegram.js';
 
 export async function handleForgeCallback(
   bot: Bot,
@@ -41,9 +42,8 @@ export async function handleForgeCallback(
     });
     await bot.api.answerCallbackQuery(callbackQueryId, { text: '✅ อนุมัติ — กำลัง ship' });
     try {
-      await bot.api.editMessageText(chatId, messageId,
-        `✅ *อนุมัติแล้ว* — Forge กำลัง ship\n*${b['title'] ?? bugId}* (${b['project'] ?? ''})`,
-        { parse_mode: 'Markdown' });
+      await editMd(bot, chatId, messageId,
+        `✅ *อนุมัติแล้ว* — Forge กำลัง ship\n*${mdEscape(b['title'] ?? bugId)}* (${mdEscape(b['project'] ?? '')})`);
     } catch { /* old message — reply markup edit fallback */
       try { await bot.api.editMessageReplyMarkup(chatId, messageId); } catch { /* ok */ }
     }
@@ -56,9 +56,8 @@ export async function handleForgeCallback(
     });
     await bot.api.answerCallbackQuery(callbackQueryId, { text: '❌ ปฏิเสธ — ไม่ ship' });
     try {
-      await bot.api.editMessageText(chatId, messageId,
-        `❌ *ปฏิเสธแล้ว* — ไม่ ship\n*${b['title'] ?? bugId}* (${b['project'] ?? ''})\n_PR ยังเปิดอยู่ ปิด/แก้ต่อได้ที่ dashboard_`,
-        { parse_mode: 'Markdown' });
+      await editMd(bot, chatId, messageId,
+        `❌ *ปฏิเสธแล้ว* — ไม่ ship\n*${mdEscape(b['title'] ?? bugId)}* (${mdEscape(b['project'] ?? '')})\n_PR ยังเปิดอยู่ ปิด/แก้ต่อได้ที่ dashboard_`);
     } catch {
       try { await bot.api.editMessageReplyMarkup(chatId, messageId); } catch { /* ok */ }
     }

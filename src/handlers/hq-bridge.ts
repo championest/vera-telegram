@@ -4,6 +4,7 @@ import { HAIKU, SONNET } from '../anthropic-client.js';
 import { config } from '../config.js';
 import admin from 'firebase-admin';
 import type { Bot } from 'grammy';
+import { mdEscape, sendMd } from '../utils/telegram.js';
 
 const HQ_CHAT_COLLECTION = 'champ-hq-chat';
 const WORKFLOW_COLLECTION = 'team-workflow';
@@ -120,15 +121,15 @@ async function processNextDispatch(bot: Bot): Promise<void> {
 
     // Send Telegram notification
     const tgSummary = [
-      `${emoji} *${member.toUpperCase()}* งานเสร็จแล้ว`,
-      `📋 *งาน:* ${task}`,
+      `${emoji} *${mdEscape(member.toUpperCase())}* งานเสร็จแล้ว`,
+      `📋 *งาน:* ${mdEscape(task)}`,
       ``,
       response.length > 800 ? response.slice(0, 800) + '...' : response,
       ``,
       `_ดูผลเต็มที่ Champ HQ → Vera_`,
     ].join('\n');
 
-    await bot.api.sendMessage(HQ_USER_ID, tgSummary, { parse_mode: 'Markdown' });
+    await sendMd(bot, HQ_USER_ID, tgSummary);
 
     await docRef.update({ status: 'DONE', completedAt: admin.firestore.FieldValue.serverTimestamp() });
     console.log(`[HQ Dispatch] ${member} ✓ ${task}`);
@@ -139,7 +140,7 @@ async function processNextDispatch(bot: Bot): Promise<void> {
     await postToHQChat(`⚠️ [${member}] เกิดข้อผิดพลาดระหว่างทำงาน`, { dispatchId: snap.docs[0].id });
 
     try {
-      await bot.api.sendMessage(HQ_USER_ID, `⚠️ Dispatch *${member}* เกิดข้อผิดพลาด\nงาน: ${task}`, { parse_mode: 'Markdown' });
+      await sendMd(bot, HQ_USER_ID, `⚠️ Dispatch *${mdEscape(member)}* เกิดข้อผิดพลาด\nงาน: ${mdEscape(task)}`);
     } catch { /* non-fatal */ }
   }
 }

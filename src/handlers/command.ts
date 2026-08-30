@@ -176,15 +176,17 @@ export async function handleStatus(ctx: Context) {
   const pending = pendingSnap.data().count;
   const running = runningSnap.data().count;
 
-  await ctx.reply(
+  // Machine names and the last session line come from Firestore, so route this
+  // through the safe reply — /status must never fail to render.
+  await replyMarkdownSafe(
+    ctx,
     '*🖥️ Ops Status*\n\n' +
     '*เครื่อง:*\n' + machineLines + '\n\n' +
     tokenLine + '\n' +
     `📋 Queue: ${running} กำลังทำ · ${pending} ค้าง\n` +
     `🗓️ Last session: ${lastSession}\n\n` +
     '*Vera:*\n' +
-    `Google: ${googleConnected ? '✅' : '❌ /connect'} · Reminders: ${reminderSnap.data().count} · Memory: ${memorySnap.data().count}`,
-    { parse_mode: 'Markdown' }
+    `Google: ${googleConnected ? '✅' : '❌ /connect'} · Reminders: ${reminderSnap.data().count} · Memory: ${memorySnap.data().count}`
   );
 }
 

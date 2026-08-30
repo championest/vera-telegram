@@ -3,6 +3,7 @@ import type { Bot } from 'grammy';
 import { db } from '../firebase.js';
 import { Timestamp } from 'firebase-admin/firestore';
 import { config } from '../config.js';
+import { mdEscape, sendMd } from '../utils/telegram.js';
 
 const CHAT_ID = parseInt(config.TELEGRAM_OWNER_CHAT_ID, 10);
 
@@ -23,12 +24,12 @@ export function startStuckTaskChecker(bot: Bot): void {
         const t = d.data();
         const member = String(t['member'] ?? '');
         const task = String(t['task'] ?? '');
-        lines.push(`• *${member}*: ${task}`);
+        lines.push(`• *${mdEscape(member)}*: ${mdEscape(task)}`);
         lines.push(`  ID: \`${d.id}\``);
       });
       lines.push('\nอัพเดตสถานะได้เลยนะคะ หรือบอก Vera ว่าทำเสร็จแล้ว');
 
-      await bot.api.sendMessage(CHAT_ID, lines.join('\n'), { parse_mode: 'Markdown' });
+      await sendMd(bot, CHAT_ID, lines.join('\n'));
     } catch (err) {
       console.error('[Stuck task checker error]', err);
     }

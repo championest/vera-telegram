@@ -5,6 +5,7 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { config } from '../config.js';
 import { isConnected, getAuthedClient } from '../services/google-auth.js';
 import { google } from 'googleapis';
+import { mdEscape, sendMd } from '../utils/telegram.js';
 
 const CHAT_ID = parseInt(config.TELEGRAM_OWNER_CHAT_ID, 10);
 
@@ -27,7 +28,7 @@ async function buildMorningBrief(): Promise<BriefResult> {
       lines.push('*📬 Notes ที่ยังไม่ได้อ่าน*');
       notesSnap.docs.forEach(d => {
         const n = d.data();
-        lines.push(`• [${n['topic'] ?? 'note'}] ${n['note']}`);
+        lines.push(`• [${mdEscape(n['topic'] ?? 'note')}] ${mdEscape(n['note'])}`);
       });
       lines.push('');
     }
@@ -50,7 +51,7 @@ async function buildMorningBrief(): Promise<BriefResult> {
       const t = (r['remindAt'] as Timestamp).toDate().toLocaleTimeString('th-TH', {
         timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit',
       });
-      lines.push(`• ${t} — ${r['message']}`);
+      lines.push(`• ${t} — ${mdEscape(r['message'])}`);
     });
     lines.push('');
   }
@@ -78,7 +79,7 @@ async function buildMorningBrief(): Promise<BriefResult> {
             const start = ev.start?.dateTime
               ? new Date(ev.start.dateTime).toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' })
               : 'ทั้งวัน';
-            lines.push(`• ${start} — ${ev.summary ?? '(ไม่มีชื่อ)'}`);
+            lines.push(`• ${start} — ${mdEscape(ev.summary ?? '(ไม่มีชื่อ)')}`);
           });
           lines.push('');
         } else {
@@ -104,7 +105,7 @@ async function buildMorningBrief(): Promise<BriefResult> {
     lines.push('*🖥 Session ล่าสุดจากคอม*');
     meaningful.forEach(e => {
       const emoji = e['status'] === 'DONE' ? '✅' : e['status'] === 'BLOCKED' ? '🚫' : '⏳';
-      lines.push(`${emoji} ${e['member']}: ${e['task']}`);
+      lines.push(`${emoji} ${mdEscape(e['member'])}: ${mdEscape(e['task'])}`);
     });
     lines.push('');
   }
@@ -119,8 +120,7 @@ export function startMorningBriefScheduler(bot: Bot): void {
   cron.schedule('0 0 * * *', async () => {
     try {
       const { text } = await buildMorningBrief();
-      await bot.api.sendMessage(CHAT_ID, text, {
-        parse_mode: 'Markdown',
+      await sendMd(bot, CHAT_ID, text, {
         reply_markup: {
           inline_keyboard: [[
             { text: '📋 ช่วยวางแผนวันนี้', callback_data: 'brief:plan_day' },
@@ -139,8 +139,7 @@ export function startMorningBriefScheduler(bot: Bot): void {
 // Exported so bot.ts can trigger manually (e.g. /brief command)
 export async function sendMorningBrief(bot: Bot): Promise<void> {
   const { text } = await buildMorningBrief();
-  await bot.api.sendMessage(CHAT_ID, text, {
-    parse_mode: 'Markdown',
+  await sendMd(bot, CHAT_ID, text, {
     reply_markup: {
       inline_keyboard: [[
         { text: '📋 ช่วยวางแผนวันนี้', callback_data: 'brief:plan_day' },

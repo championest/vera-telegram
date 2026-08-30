@@ -12,6 +12,7 @@ import { gmailListUnread } from './tools/gmail-read.js';
 import { listReminders } from './tools/list-reminders.js';
 import { getSessionContext } from './tools/session-bridge.js';
 import { listProposals, queueProposals, dismissProposals } from './tools/meta-proposals.js';
+import { mdEscape, replyMd } from './utils/telegram.js';
 
 export function createBot(): Bot {
   const bot = new Bot(config.TELEGRAM_BOT_TOKEN);
@@ -37,16 +38,18 @@ export function createBot(): Bot {
   bot.command('menu', handleMenu);
   bot.command('model', handleModel);
   bot.command('proactive', handleProactive);
+  // replyMd, not ctx.reply: these list proposal titles verbatim, so a `_` in one
+  // of them used to swallow the whole list and show only "เกิดข้อผิดพลาด".
   bot.command('proposals', async (ctx) => {
-    try { await ctx.reply(await listProposals(), { parse_mode: 'Markdown' }); }
+    try { await replyMd(ctx, await listProposals()); }
     catch (err: any) { await ctx.reply(`เกิดข้อผิดพลาด: ${err.message}`); }
   });
   bot.command('queue', async (ctx) => {
-    try { await ctx.reply(await queueProposals(ctx.match), { parse_mode: 'Markdown' }); }
+    try { await replyMd(ctx, await queueProposals(ctx.match)); }
     catch (err: any) { await ctx.reply(`เกิดข้อผิดพลาด: ${err.message}`); }
   });
   bot.command('dismiss', async (ctx) => {
-    try { await ctx.reply(await dismissProposals(ctx.match), { parse_mode: 'Markdown' }); }
+    try { await replyMd(ctx, await dismissProposals(ctx.match)); }
     catch (err: any) { await ctx.reply(`เกิดข้อผิดพลาด: ${err.message}`); }
   });
   bot.command('brief', async (ctx) => {
@@ -270,7 +273,7 @@ ${ideas || '(ไม่มี)'}
       return;
     }
     if (!extracted) {
-      await ctx.reply(`ไฟล์ \`${filename ?? mime}\` ยังไม่รองรับค่ะ — ส่งเป็น PDF, image, audio, docx, xlsx, txt, csv, json, md ได้`, { parse_mode: 'Markdown' });
+      await replyMd(ctx, `ไฟล์ \`${mdEscape(filename ?? mime)}\` ยังไม่รองรับค่ะ — ส่งเป็น PDF, image, audio, docx, xlsx, txt, csv, json, md ได้`);
       return;
     }
     await sendMediaReply(ctx, extracted.buffer, extracted.mimeType, caption, extracted.filename);

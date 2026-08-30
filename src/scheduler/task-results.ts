@@ -4,6 +4,7 @@
 import type { Bot } from 'grammy';
 import { db } from '../firebase.js';
 import { config } from '../config.js';
+import { mdEscape, sendMd } from '../utils/telegram.js';
 
 export async function pushTaskResult(bot: Bot, taskId: string): Promise<boolean> {
   const ref = db.collection('claude-tasks').doc(taskId);
@@ -29,9 +30,13 @@ export async function pushTaskResult(bot: Bot, taskId: string): Promise<boolean>
     .filter(Boolean)
     .join(' · ');
 
+  // Escape the header fields (project names and task strings are identifier-heavy
+  // — one underscore there used to demote the whole message to plain text). The
+  // result body is left alone: Claude writes deliberate Markdown in its summary,
+  // and sendMd already degrades gracefully if that body won't parse.
   const msg = [
-    `${emoji} *งานจาก Claude Code เสร็จแล้ว*${proj}`,
-    `📋 ${String(t['task']).slice(0, 200)}`,
+    `${emoji} *งานจาก Claude Code เสร็จแล้ว*${mdEscape(proj)}`,
+    `📋 ${mdEscape(String(t['task']).slice(0, 200))}`,
     meta ? `⏱ ${meta}` : '',
     '',
     String(t['result'] ?? '(no result)').slice(0, 3500),
@@ -39,10 +44,7 @@ export async function pushTaskResult(bot: Bot, taskId: string): Promise<boolean>
     .filter((l) => l !== '')
     .join('\n');
 
-  await bot.api.sendMessage(config.TELEGRAM_OWNER_CHAT_ID, msg, { parse_mode: 'Markdown' }).catch(async () => {
-    // Markdown can break on raw code output — retry plain
-    await bot.api.sendMessage(config.TELEGRAM_OWNER_CHAT_ID, msg);
-  });
+  await sendMd(bot, config.TELEGRAM_OWNER_CHAT_ID, msg);
   await ref.update({ notified: true });
   return true;
 }

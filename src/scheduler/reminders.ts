@@ -3,6 +3,7 @@ import type { Bot } from 'grammy';
 import { db } from '../firebase.js';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { config } from '../config.js';
+import { mdEscape, sendMd } from '../utils/telegram.js';
 
 const CHAT_ID = parseInt(config.TELEGRAM_OWNER_CHAT_ID, 10);
 
@@ -21,11 +22,11 @@ export function startReminderScheduler(bot: Bot): void {
 
         const reminder = doc.data();
         try {
-          await bot.api.sendMessage(
+          await sendMd(
+            bot,
             CHAT_ID,
-            `⏰ *Reminder*\n${reminder['message']}`,
+            `⏰ *Reminder*\n${mdEscape(reminder['message'])}`,
             {
-              parse_mode: 'Markdown',
               reply_markup: {
                 inline_keyboard: [[
                   { text: '⏰ Snooze 1h', callback_data: `rm:snooze:${doc.id}` },
